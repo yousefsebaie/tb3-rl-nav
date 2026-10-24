@@ -2,7 +2,7 @@
 
 Handoff for the hardware side of the CyberScape project. It covers what was built to get RL working in Isaac Sim, how it works, the exact numbers the policy was trained on, how it fits the Overcooked-AI / MAPPO thesis plan, and what is still missing to run it on the real TurtleBot3 Burger.
 
-Code lives in `rl_point_nav/` of this repo (originally `Hardware/Turtlebot3/rl_point_nav/` in `cyberspace-main`). Hardware nodes are in `hardware/`; in this repo `../safety_filter_node.py` means `hardware/safety_filter_node.py`.
+Code lives in `Hardware/Turtlebot3/rl_point_nav/`. Paths like `../safety_filter_node.py` are relative to that folder (`Hardware/Turtlebot3/safety_filter_node.py`).
 
 ---
 
@@ -225,7 +225,7 @@ How the pieces connect:
 ## 6. Commands (simulation, on this machine)
 
 ```bash
-cd ~/Downloads/cyberspace-main/Hardware/Turtlebot3/rl_point_nav
+cd ~/tb3-rl-nav/Hardware/Turtlebot3/rl_point_nav
 # train V2 (headless)
 ~/isaac-sim/python.sh train_isaac_point_nav_lidar_ppo_v2.py --timesteps 200000
 # GUI demo of a trained V2 checkpoint (no --model = rule-based controller)

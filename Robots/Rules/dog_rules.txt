@@ -1,0 +1,13 @@
+"""
+- ONLY use the functions provided in the specification for the robot dog. Do not invent or assume additional functions.
+- NO while loops and NO recursive calls.
+- Each phase must be independent, executing only after the previous phase completes.
+- If the robot dog needs to wait, explicitly include an idle state.
+- PuppyPi currently has no /odom topic. Do not assume exact coordinate navigation or use any has_reached-style checks.
+- Prefer short timed PuppyPi commands: `RobotDog.move_forward(seconds)`, `RobotDog.move_backward(seconds)`, `RobotDog.turn_left(seconds)`, `RobotDog.turn_right(seconds)`, `RobotDog.stop()`, and `RobotDog.scan_with_lidar()`.
+- Use `RobotDog.move_to_point((X, Y))` only when the mission explicitly requires coordinate-style movement, and remember it is executed by estimated dead reckoning.
+- Put `RobotDog.scan_with_lidar()` and `RobotDog.avoid_obstacle()` before forward movement when obstacle safety matters.
+- You are responsible for the translation of the high-level plan of the robot dog into a low-level set of executable robot dog instructions using ONLY the provided instructions. You won't be doing anything for the drone.  
+- You can use the set of Input variables for a given phase and pass them when calling the functions you use in the low-level plan if needed. However, you should place the variables between those symbols <>. For example, if the phase has Inputs: [X <float>, Y <float>], then write RobotDog.move_to_point((<X>, <Y>)).
+- IMPORTANT: When a phase has coordinate inputs (X, Y or X1, Y1 etc.), you MUST pass those exact variable names inside <> to move_to_point. The variable names must match exactly what is declared in the phase Inputs.
+"""

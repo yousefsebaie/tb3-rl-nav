@@ -1,0 +1,33 @@
+Phase 1:
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('supply box')
+
+Phase 2:
+MultiTurtlebot.wait_for_signal()
+MultiTurtlebot.move_to_point((<X_supply_box>, <Y_supply_box>))
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('open space')
+
+Phase 3:
+MultiTurtlebot.wait_for_signal()
+MultiTurtlebot.retrieve_object('supply box')
+
+Phase 4:
+MultiTurtlebot.wait_for_signal()
+MultiTurtlebot.move_to_point((<X_handoff>, <Y_handoff>))
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('handoff location')
+MultiTurtlebot.communicate_with_apm('box dropped')
+
+Phase 5:
+MultiTurtlebot.wait_for_signal()
+MultiTurtlebot.move_to_point((<X_handoff>, <Y_handoff>))
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('supply box')
+
+Phase 6:
+MultiTurtlebot.wait_for_signal()
+MultiTurtlebot.retrieve_object('supply box')
+MultiTurtlebot.return_to_base()
+MultiTurtlebot.communicate_with_apm('mission complete')
+

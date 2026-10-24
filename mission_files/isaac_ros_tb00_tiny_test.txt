@@ -1,0 +1,1 @@
+The TurtleBot3 Burger starts at base coordinates (0.0, 0.0). This is a tiny Isaac ROS 2 test. Move only to nearby point (0.30, 0.0), scan with LiDAR, then return to base at (0.0, 0.0). Do not exceed 0.45 meters from the starting point.

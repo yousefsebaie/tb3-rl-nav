@@ -1,0 +1,13 @@
+Phase 1:
+Drone.fly(10.0)
+Drone.move_to_point((0.0, 0.0, 10.0))
+Drone.detect_with_camera('Survivor 1')
+
+Phase 2:
+Drone.move_to_point((5.0, 5.0, 10.0))
+Drone.detect_with_camera('Survivor 2')
+
+Phase 3:
+Drone.communicate_with_apm('Survivor 1: (2.0, 5.0)')
+Drone.communicate_with_apm('Survivor 2: (8.0, 3.0)')
+Drone.return_to_base()

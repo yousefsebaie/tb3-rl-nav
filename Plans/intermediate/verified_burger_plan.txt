@@ -1,0 +1,31 @@
+## Revised Plan:
+
+Phase 1:
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('supply box')
+
+Phase 2:
+MultiTurtlebot.wait_for_signal('supply box detected')
+MultiTurtlebot.move_to_point((-0.81, 2.5))
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('open space')
+
+Phase 3:
+MultiTurtlebot.wait_for_signal('clear to retrieve')
+MultiTurtlebot.retrieve_object('supply box')
+MultiTurtlebot.communicate_with_apm('supply box retrieved')
+
+Phase 4:
+MultiTurtlebot.wait_for_signal('ready for handoff')
+MultiTurtlebot.move_to_point((2.0, 2.0))
+MultiTurtlebot.scan_with_lidar()
+MultiTurtlebot.detect_with_camera('handoff location')
+MultiTurtlebot.communicate_with_apm('box dropped')
+
+Phase 5:
+MultiTurtlebot.wait_for_signal('handoff complete')
+MultiTurtlebot.retrieve_object('supply box')
+
+Phase 6:
+MultiTurtlebot.return_to_base()
+MultiTurtlebot.communicate_with_apm('mission complete')

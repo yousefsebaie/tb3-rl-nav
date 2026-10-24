@@ -1,0 +1,106 @@
+{
+    "turtlebot3_plan": {
+        "target": "MULTI_TURTLEBOT",
+        "phases": [
+            {
+                "target": "MULTI_TURTLEBOT",
+                "phase_number": 1,
+                "state": "Initiating supply box retrieval mission. Drone is airborne and scanning for the box near expected coordinates. Other robots are on standby.",
+                "phase_target": "Detect and locate the supply box.",
+                "inputs": [],
+                "outputs": {
+                    "X_supply_box": {
+                        "type": "float"
+                    },
+                    "Y_supply_box": {
+                        "type": "float"
+                    }
+                }
+            },
+            {
+                "target": "MULTI_TURTLEBOT",
+                "phase_number": 2,
+                "state": "Supply box located. Drone searches for a suitable handoff spot.",
+                "phase_target": "Find and identify coordinates for handoff.",
+                "inputs": [],
+                "outputs": {
+                    "X_handoff": {
+                        "type": "float"
+                    },
+                    "Y_handoff": {
+                        "type": "float"
+                    }
+                }
+            },
+            {
+                "target": "MULTI_TURTLEBOT",
+                "phase_number": 3,
+                "state": "TurtleBot3_1 is ready at the base with LiDAR and camera.",
+                "phase_target": "Navigate to the supply box and retrieve it.",
+                "inputs": {
+                    "X_supply_box": {
+                        "type": "float"
+                    },
+                    "Y_supply_box": {
+                        "type": "float"
+                    }
+                },
+                "outputs": {
+                    "box_retrieval_status": {
+                        "type": "string"
+                    }
+                }
+            },
+            {
+                "target": "MULTI_TURTLEBOT",
+                "phase_number": 4,
+                "state": "TurtleBot3_1 has the supply box and is ready to transport.",
+                "phase_target": "Navigate to the handoff coordinates and drop the box.",
+                "inputs": {
+                    "X_handoff": {
+                        "type": "float"
+                    },
+                    "Y_handoff": {
+                        "type": "float"
+                    }
+                },
+                "outputs": {
+                    "handoff_complete": {
+                        "type": "string"
+                    }
+                }
+            },
+            {
+                "target": "MULTI_TURTLEBOT",
+                "phase_number": 5,
+                "state": "TurtleBot3_2 awaits at the base, ready for transport.",
+                "phase_target": "Navigate to the handoff location and retrieve the supply box.",
+                "inputs": {
+                    "X_handoff": {
+                        "type": "float"
+                    },
+                    "Y_handoff": {
+                        "type": "float"
+                    }
+                },
+                "outputs": {
+                    "box_retrieval_status": {
+                        "type": "string"
+                    }
+                }
+            },
+            {
+                "target": "MULTI_TURTLEBOT",
+                "phase_number": 6,
+                "state": "TurtleBot3_2 has retrieved the box from the handoff location.",
+                "phase_target": "Navigate back to the base with the supply box.",
+                "inputs": [],
+                "outputs": {
+                    "base_arrival_status": {
+                        "type": "string"
+                    }
+                }
+            }
+        ]
+    }
+}

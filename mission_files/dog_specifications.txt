@@ -1,0 +1,29 @@
+move_to_point((x,y)) // estimated movement toward coordinates using timed velocity only; PuppyPi currently has no /odom, so this is not accurate coordinate navigation
+move_forward(duration_seconds) // walk forward for a short timed duration using LiDAR safety stop
+move_backward(duration_seconds) // walk backward for a short timed duration
+turn_left(duration_seconds) // turn left for a short timed duration
+turn_right(duration_seconds) // turn right for a short timed duration
+stop() // publish zero velocity immediately
+rotate(angle) // estimated in-place rotation by angle degrees using timed yaw velocity
+scan_with_lidar() // scan surroundings with /scan and report minimum/front distance
+avoid_obstacle() // if an obstacle is close in front, stop and rotate toward the clearer side using LiDAR
+detect_with_camera(object) // detect objects with the camera, return position and detection status which is boolean
+wait_for_signal() // wait for a signal to continue
+communicate_with_apm(data) // communicate with the Adaptive Planning Module (APM) to send any type of data
+retrieve_the_object(object) // Get the object
+return_to_base() // estimated timed return to base; not accurate without localization
+Remarks:
+The physical robot dog is Hiwonder PuppyPi controlled through ROS 1 rosbridge.
+PuppyPi movement uses /puppy_control/velocity_move with fields x, y, yaw_rate.
+PuppyPi must receive standing pose and gait before velocity movement; the hardware adapter handles this at startup.
+PuppyPi has LiDAR on /scan and camera on /usb_cam/image_raw.
+PuppyPi currently has no visible /odom topic. Do not rely on exact coordinate navigation.
+Prefer short timed commands such as RobotDog.move_forward(1.0), RobotDog.turn_left(1.0), RobotDog.stop(), and RobotDog.scan_with_lidar() for PuppyPi missions.
+Use conservative movement durations and scan frequently before forward movement.
+To retrieve an object after detecting it, retrieve_the_object should be used.
+When waiting for information from the drone, wait_for_signal should be used.
+When scanning an area, detect_with_camera should be called after each movement until detection.
+Use detect_with_camera when you are scanning with the intention of detecting something.
+If you want to communicate a given square to the apm, you should send the coordinates of the center of the square, this is the identifier of the square.
+Do not use excessive indentation in the generated plan.
+Any scanning should be done in one phase and not distributed on separate phases.

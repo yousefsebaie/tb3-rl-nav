@@ -1,0 +1,1 @@
+The TurtleBot3 stays close to base. It moves from base at (0.0, 0.0) to a nearby point at (0.4, 0.0), scans with its LiDAR, then returns to base at (0.0, 0.0). Do not exceed 0.5 meters of travel from the starting point.

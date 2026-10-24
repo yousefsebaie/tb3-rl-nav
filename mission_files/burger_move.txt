@@ -1,0 +1,1 @@
+The TurtleBot3 starts at its base. It moves forward to coordinates (1.0, 0.0), scans the area with its LiDAR, then returns to base at coordinates (0.0, 0.0).

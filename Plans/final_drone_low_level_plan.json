@@ -1,0 +1,50 @@
+{
+    "target": "DRONE",
+    "phases": [
+        {
+            "target": "DRONE",
+            "phase_number": 1,
+            "state": "Mission to locate Survivor 1. Drone is at 10m altitude scanning with camera. Main mission is search and rescue.",
+            "phase_target": "Scan area and identify Survivor 1 coordinates.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "Drone.fly(10.0)\nDrone.move_to_point((0.0, 0.0, 10.0))\nDrone.detect_with_camera('Survivor 1')"
+        },
+        {
+            "target": "DRONE",
+            "phase_number": 2,
+            "state": "Drone located Survivor 1, now locating Survivor 2. Drone is at 10m altitude scanning with camera.",
+            "phase_target": "Scan area and identify Survivor 2 coordinates.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "Drone.move_to_point((5.0, 5.0, 10.0))\nDrone.detect_with_camera('Survivor 2')"
+        },
+        {
+            "target": "DRONE",
+            "phase_number": 3,
+            "state": "Drone located both survivors, now communicating coordinates. Drone is at 10m altitude.",
+            "phase_target": "Communicate Survivor 1 coordinates to Robot Dog and Survivor 2 coordinates to TurtleBot3.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "Drone.communicate_with_apm('Survivor 1: (2.0, 5.0)')\nDrone.communicate_with_apm('Survivor 2: (8.0, 3.0)')\nDrone.return_to_base()"
+        },
+        {
+            "target": "DRONE",
+            "phase_number": 1,
+            "state": "Robot Dog waiting for drone signal. Robot Dog is at base station.",
+            "phase_target": "Navigate to received Survivor 1 coordinates (X1, Y1) and deliver first-aid kit.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "Drone.fly(10.0)\nDrone.move_to_point((0.0, 0.0, 10.0))\nDrone.detect_with_camera('Survivor 1')"
+        },
+        {
+            "target": "DRONE",
+            "phase_number": 1,
+            "state": "TurtleBot3 waiting for drone signal. TurtleBot3 is at base station.",
+            "phase_target": "Navigate to received Survivor 2 coordinates (X2, Y2) and deliver supplies.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "Drone.fly(10.0)\nDrone.move_to_point((0.0, 0.0, 10.0))\nDrone.detect_with_camera('Survivor 1')"
+        }
+    ]
+}

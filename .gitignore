@@ -1,9 +1,13 @@
+# secrets: copy config.example.json to config.json and fill in your own keys
+config.json
+.env
+myenv/
+env/
+venv/
+.venv/
 __pycache__/
 *.pyc
 *.log
-.venv/
-venv/
-env/
-.env
-.vscode/
+.DS_Store
 .idea/
+.vscode/

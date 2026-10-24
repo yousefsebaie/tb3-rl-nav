@@ -1,0 +1,14 @@
+{
+    "target": "TURTLEBOT3",
+    "phases": [
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 1,
+            "state": "TurtleBot3 is at base station for a tiny Isaac ROS 2 movement test.",
+            "phase_target": "Move a short distance, scan, and return to base.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3.move_to_point((0.30, 0.0))\nTurtleBot3.scan_with_lidar()\nTurtleBot3.move_to_point((0.0, 0.0))"
+        }
+    ]
+}

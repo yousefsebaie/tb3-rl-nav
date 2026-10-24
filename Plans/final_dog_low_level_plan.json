@@ -1,0 +1,47 @@
+{
+    "target": "ROBOT_DOG",
+    "phases": [
+        {
+            "target": "ROBOT_DOG",
+            "phase_number": 1,
+            "state": "PuppyPi is standing at the start of a one-minute obstacle-aware movement test.",
+            "phase_target": "Scan, avoid any close obstacle, move forward for one minute with LiDAR safety, and stop.",
+            "inputs": [],
+            "outputs": [
+                "scan_complete",
+                "avoidance_needed",
+                "avoidance_direction",
+                "blocked_by_obstacle",
+                "front_distance_m"
+            ],
+            "low_level_plan": "RobotDog.scan_with_lidar()\nRobotDog.avoid_obstacle()\nRobotDog.move_forward(60.0)\nRobotDog.stop()"
+        },
+        {
+            "target": "ROBOT_DOG",
+            "phase_number": 2,
+            "state": "PuppyPi completed the first forward segment and is ready to rotate.",
+            "phase_target": "Rotate left, scan again, avoid if needed, then move forward briefly.",
+            "inputs": [],
+            "outputs": [
+                "rotated_degrees",
+                "scan_complete",
+                "avoidance_needed",
+                "blocked_by_obstacle",
+                "front_distance_m"
+            ],
+            "low_level_plan": "RobotDog.rotate(90)\nRobotDog.scan_with_lidar()\nRobotDog.avoid_obstacle()\nRobotDog.move_forward(2.0)\nRobotDog.stop()"
+        },
+        {
+            "target": "ROBOT_DOG",
+            "phase_number": 3,
+            "state": "PuppyPi completed the second movement segment.",
+            "phase_target": "Rotate back to the right and stop safely.",
+            "inputs": [],
+            "outputs": [
+                "rotated_degrees",
+                "stopped"
+            ],
+            "low_level_plan": "RobotDog.rotate(-90)\nRobotDog.stop()"
+        }
+    ]
+}

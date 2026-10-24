@@ -1,0 +1,13 @@
+Phase 1:
+RobotDog.wait_for_signal()
+RobotDog.communicate_with_apm((2.0, 5.0))
+
+Phase 2:
+RobotDog.move_to_point((2.0, 5.0))
+if RobotDog.has_reached(2.0, 5.0):
+    RobotDog.detect_with_camera('first-aid kit')
+    RobotDog.retrieve_the_object('first-aid kit')
+
+Phase 3:
+RobotDog.return_to_base()
+
