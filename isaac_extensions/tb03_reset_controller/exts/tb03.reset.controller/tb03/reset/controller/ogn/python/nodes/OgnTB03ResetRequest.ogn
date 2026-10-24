@@ -1,0 +1,28 @@
+{
+  "TB03ResetRequest": {
+    "version": 1,
+    "language": "Python",
+    "categories": "TB03 Reset",
+    "description": "Queues a decoded ROS2 reset request without modifying physics.",
+    "inputs": {
+      "execIn": {
+        "type": "execution"
+      },
+      "linearVelocity": {
+        "type": "double[3]",
+        "description": "x and y are target measured base_link coordinates."
+      },
+      "angularVelocity": {
+        "type": "double[3]",
+        "description": "z is target measured base_link yaw."
+      }
+    },
+    "outputs": {
+      "execOut": {
+        "type": "execution"
+      }
+    },
+    "uiName": "TB03 Reset Request",
+    "categoryDefinitions": "categories.json"
+  }
+}

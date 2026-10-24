@@ -1,0 +1,22 @@
+[package]
+version = "0.2.1"
+category = "Robotics"
+title = "TB03 Reset Controller"
+description = "Isaac-native TurtleBot reset controller with OmniGraph ROS2 Bridge transport."
+authors = ["Thesis Project"]
+keywords = ["isaac", "omnigraph", "ros2", "turtlebot", "reset"]
+python.node_registration_mode = "Synchronous"
+
+[dependencies]
+"isaacsim.core.api" = {}
+"isaacsim.ros2.bridge" = {}
+"omni.graph" = {}
+"omni.graph.core" = {}
+"omni.graph.tools" = {}
+"omni.kit.uiapp" = {}
+
+[[python.module]]
+name = "tb03.reset.controller"
+
+[fswatcher.patterns]
+include = ["*.ogn", "*.py", "*.json"]

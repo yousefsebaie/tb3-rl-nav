@@ -1,0 +1,24 @@
+{
+  "TB03ResetStatus": {
+    "version": 1,
+    "language": "Python",
+    "categories": "TB03 Reset",
+    "description": "Emits one completion pulse after the Isaac-native reset controller has settled.",
+    "inputs": {
+      "execIn": {
+        "type": "execution"
+      }
+    },
+    "outputs": {
+      "execOut": {
+        "type": "execution"
+      },
+      "success": {
+        "type": "bool",
+        "default": false
+      }
+    },
+    "uiName": "TB03 Reset Status",
+    "categoryDefinitions": "categories.json"
+  }
+}
