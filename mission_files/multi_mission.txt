@@ -1,0 +1,1 @@
+A TurtleBot3 Burger and a Robot Dog start side by side at base. The TurtleBot3 uses move_forward(2.0) to drive 2 meters forward, then rotate(180) to turn around, then return_to_base(). The Robot Dog uses move_forward(10.0) to walk forward for 10 seconds, then rotate(180) to turn around, then move_forward(10.0) to walk back to base, then stop().

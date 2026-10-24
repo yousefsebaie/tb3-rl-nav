@@ -1,0 +1,1 @@
+TurtleBot3 moves forward 2 meters, rotates 180 degrees, and returns to base. RobotDog walks forward for 30 seconds, rotates 180 degrees, walks back for 30 seconds and stops.

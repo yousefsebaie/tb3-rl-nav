@@ -46,16 +46,16 @@ DEFAULT_PUPPY_IP = "192.168.137.136"
 DEFAULT_ROSBRIDGE_PORT = 9090
 
 HEARTBEAT_PERIOD = 5.0
-COMMAND_TIMEOUT = 0.75
-CONTROL_RATE_HZ = 5.0
+COMMAND_TIMEOUT = 2.0
+CONTROL_RATE_HZ = 20.0
 
 FRONT_SECTOR_DEG = 25.0
 OBSTACLE_STOP_DISTANCE = 0.40
 
-DEFAULT_FORWARD_SPEED = 3.0
-DEFAULT_TURN_RATE = 0.30
+DEFAULT_FORWARD_SPEED = 5.0
+DEFAULT_TURN_RATE = 0.18
 DEFAULT_LINEAR_UNITS_PER_METER = 10.0
-DEFAULT_YAW_RATE_RAD_PER_SEC = 0.30
+DEFAULT_YAW_RATE_RAD_PER_SEC = 0.18
 
 
 def normalize_angle(angle: float) -> float:
@@ -112,7 +112,7 @@ class PuppyPiDriver:
 
         print(f"[puppy] Connecting to rosbridge ws://{puppy_ip}:{rosbridge_port}")
         self._ros = roslibpy.Ros(host=puppy_ip, port=rosbridge_port)
-        self._ros.run()
+        self._ros.run(timeout=15)
         if not self._ros.is_connected:
             raise RuntimeError(f"Could not connect to PuppyPi rosbridge at {puppy_ip}:{rosbridge_port}")
 
@@ -145,8 +145,8 @@ class PuppyPiDriver:
         roll: float = 0.0,
         pitch: float = 0.0,
         yaw: float = 0.0,
-        height: float = -12.0,
-        x_shift: float = -0.6,
+        height: float = -10.0,
+        x_shift: float = -0.5,
         stance_x: float = 0.0,
         stance_y: float = 0.0,
         run_time: int = 500,
@@ -165,10 +165,10 @@ class PuppyPiDriver:
 
     def publish_gait(
         self,
-        overlap_time: float = 0.2,
-        swing_time: float = 0.3,
+        overlap_time: float = 0.35,
+        swing_time: float = 0.4,
         clearance_time: float = 0.0,
-        z_clearance: float = 5.0,
+        z_clearance: float = 7.0,
     ):
         self._gait_pub.publish(roslibpy.Message({
             "overlap_time": overlap_time,
@@ -321,7 +321,13 @@ class PuppyPiDriver:
         degrees = float(degrees)
         yaw_rate = self._turn_rate if degrees >= 0.0 else -self._turn_rate
         duration = abs(math.radians(degrees)) / max(self._yaw_rate_rad_per_sec, 1e-6)
+        # Switch to pivot-friendly gait for rotation
+        self.publish_gait(overlap_time=0.1, swing_time=0.3, clearance_time=0.0, z_clearance=5.0)
+        time.sleep(0.2)
         result = self.move_for(x=0.0, yaw_rate=yaw_rate, duration=duration)
+        # Restore walking gait
+        self.publish_gait()
+        time.sleep(0.2)
         self._est_yaw = normalize_angle(self._est_yaw + math.radians(degrees))
         result.update({"rotated_degrees": degrees, "estimated": True})
         return result

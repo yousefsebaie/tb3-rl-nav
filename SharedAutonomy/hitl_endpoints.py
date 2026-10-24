@@ -55,7 +55,10 @@ def launch_isaac_sender():
         "CYBERSCAPE_ISAAC_SENDER",
         os.path.join(project_dir, "Hardware", "Isaac", "cyberscape_isaac_plan_sender.py"),
     )
-    log_file = os.environ.get("CYBERSCAPE_ISAAC_SENDER_LOG", "/home/g8/cyberscape_sender.log")
+    log_file = os.environ.get(
+        "CYBERSCAPE_ISAAC_SENDER_LOG",
+        os.path.join(project_dir, "cyberscape_sender.log"),
+    )
 
     if _isaac_sender_process is not None:
         if _isaac_sender_process.poll() is None:

@@ -4,11 +4,31 @@
         {
             "target": "TURTLEBOT3",
             "phase_number": 1,
-            "state": "TurtleBot3 is at base station for a tiny Isaac ROS 2 movement test.",
-            "phase_target": "Move a short distance, scan, and return to base.",
+            "state": "Burger at base, ready to move.",
+            "phase_target": "Drive forward 2 metres, avoiding obstacles.",
             "inputs": [],
-            "outputs": [],
-            "low_level_plan": "TurtleBot3.move_to_point((0.30, 0.0))\nTurtleBot3.scan_with_lidar()\nTurtleBot3.move_to_point((0.0, 0.0))"
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_forward(2.0)\nTurtleBot3.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 2,
+            "state": "Burger reached forward position. Rotating to face base.",
+            "phase_target": "Rotate 180 degrees.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.rotate(180)"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 3,
+            "state": "Burger facing base. Returning.",
+            "phase_target": "Return to base.",
+            "inputs": [],
+            "outputs": {
+                "mission_status": {"type": "string"}
+            },
+            "low_level_plan": "TurtleBot3.return_to_base()\nTurtleBot3.communicate_with_apm('mission_complete')"
         }
     ]
 }

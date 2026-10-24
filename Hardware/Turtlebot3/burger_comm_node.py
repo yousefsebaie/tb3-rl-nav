@@ -28,6 +28,7 @@ Usage:
 
 import ast
 import math
+import random
 import re
 import sys
 import time
@@ -57,7 +58,7 @@ GOAL_TOLERANCE   = 0.05         # metres
 ANGLE_TOLERANCE  = 0.03         # radians (~1.7°)
 OBSTACLE_STOP_DISTANCE = 0.35   # metres; stop before the Burger reaches an obstacle
 OBSTACLE_CLEAR_DISTANCE = 0.50  # metres; desired clearance before driving forward again
-AVOIDANCE_TURN_DEG = 55.0
+AVOIDANCE_TURN_DEG = 90.0
 AVOIDANCE_STEP_DISTANCE = 0.25
 MAX_AVOIDANCE_ATTEMPTS = 12
 
@@ -186,9 +187,10 @@ class BurgerDriver(Node):
         return self._front_clearance() < OBSTACLE_STOP_DISTANCE
 
     def _clearer_turn_direction(self) -> int:
-        left_clearance = self._sector_min_distance(math.radians(55.0), math.radians(35.0))
-        right_clearance = self._sector_min_distance(math.radians(-55.0), math.radians(35.0))
-        return 1 if left_clearance >= right_clearance else -1
+        direction = random.choice([1, -1])
+        label = "LEFT" if direction == 1 else "RIGHT"
+        self.get_logger().info(f'[avoidance] Randomly chose to turn {label} (50/50).')
+        return direction
 
     def _drive_forward_for(self, distance: float) -> bool:
         start_x, start_y, _ = self._pose()
@@ -243,6 +245,40 @@ class BurgerDriver(Node):
         return False
 
     # ── public instruction methods ────────────────────────
+
+    def move_forward(self, distance: float) -> dict:
+        """Drive straight ahead in the robot's current heading, with obstacle avoidance."""
+        self.get_logger().info(f'[move_forward] {distance:.2f} m')
+        start_x, start_y, _ = self._pose()
+        travelled = 0.0
+        avoidance_attempts = 0
+        rate = 0.1
+
+        while travelled < distance:
+            cx, cy, _ = self._pose()
+            travelled = math.sqrt((cx - start_x) ** 2 + (cy - start_y) ** 2)
+
+            if self._front_is_blocked():
+                avoidance_attempts += 1
+                if avoidance_attempts > MAX_AVOIDANCE_ATTEMPTS:
+                    self._stop()
+                    self.get_logger().error('[move_forward] Too many avoidance attempts.')
+                    return {"reached": False, "travelled_m": round(travelled, 3)}
+                if not self._avoid_obstacle():
+                    self._stop()
+                    self.get_logger().error('[move_forward] Could not bypass obstacle.')
+                    return {"reached": False, "travelled_m": round(travelled, 3)}
+                continue
+
+            remaining = distance - travelled
+            twist = Twist()
+            twist.linear.x = min(LINEAR_SPEED, remaining * 0.5 + 0.05)
+            self._cmd_pub.publish(twist)
+            time.sleep(rate)
+
+        self._stop()
+        self.get_logger().info('[move_forward] Done.')
+        return {"reached": True, "travelled_m": round(travelled, 3)}
 
     def move_to_point(self, x: float, y: float) -> dict:
         """Navigate to (x, y) using a simple proportional controller."""
@@ -443,8 +479,13 @@ def parse_and_execute(instruction: str, driver: BurgerDriver,
     func_name = match.group(1)
     raw_args  = match.group(2).strip()
 
+    # ── move_forward(distance) ────────────────────────────
+    if func_name == 'move_forward':
+        dist = float(raw_args)
+        return driver.move_forward(dist)
+
     # ── move_to_point((x, y)) ──────────────────────────────
-    if func_name == 'move_to_point':
+    elif func_name == 'move_to_point':
         inner = re.sub(r'[\(\)\s]', '', raw_args)
         parts = inner.split(',')
         x, y  = float(parts[0]), float(parts[1])

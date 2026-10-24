@@ -11,3 +11,6 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# hardware RL run logs
+Hardware/Turtlebot3/rl_point_nav/logs/
