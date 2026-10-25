@@ -8,10 +8,13 @@ safe twist messages to /cmd_vel.
 
 import rclpy
 import math
+import time
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+
+RAW_CMD_TIMEOUT_S = 0.5
 
 
 def normalize_angle(angle: float) -> float:
@@ -38,6 +41,8 @@ class SafetyFilter(Node):
 
         self._latest_raw = Twist()
         self._has_raw = False
+        self._last_raw_time = None
+        self._raw_timed_out = False
         self._scan = None
 
         self.get_logger().info('[SafetyFilter] Started. Filtering /cmd_vel_raw → /cmd_vel.')
@@ -49,6 +54,8 @@ class SafetyFilter(Node):
     def _raw_cmd_cb(self, msg: Twist):
         self._latest_raw = msg
         self._has_raw = True
+        self._last_raw_time = time.monotonic()
+        self._raw_timed_out = False
         self._publish_safe_command()
 
     def _obstacle_in_front(self) -> bool:
@@ -69,6 +76,17 @@ class SafetyFilter(Node):
 
     def _publish_safe_command(self):
         if not self._has_raw:
+            return
+
+        # Scans re-publish the latest raw command, so a sender that dies without
+        # sending zero (Ctrl+C, crash, lost SSH) would keep the robot moving.
+        # Senders publish every <= 0.1 s while moving; treat silence as stop.
+        if time.monotonic() - self._last_raw_time > RAW_CMD_TIMEOUT_S:
+            if not self._raw_timed_out:
+                self.get_logger().warn('[SafetyFilter] No /cmd_vel_raw for '
+                                       f'{RAW_CMD_TIMEOUT_S} s; sending zero velocity.')
+                self._raw_timed_out = True
+            self._cmd_pub.publish(Twist())
             return
 
         safe_cmd = Twist()

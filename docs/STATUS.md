@@ -75,10 +75,11 @@ What the real robot showed, for retraining:
 
 ## Hardware PC: next steps
 1. Bringup, safety filter and the RL runner all work on the Burger (see the README and the quick reference below). Three SSH windows: bringup, `python3 ~/rl_point_nav/safety_filter_node.py`, RL.
-2. Copy the remaining V2 obstacle-run logs from the Burger (`~/rl_point_nav/logs/`) into `rl_point_nav/results/`. The Mac lost SSH to the Pi near the end; try `sudo iw wlan0 set power_save off` on the Pi.
-3. Repeat obstacle runs about 5–10 times per setup to get success rates.
-4. Test the LLM mission pipeline again on the new IPs (`--server http://192.168.137.40:5001`).
-5. When it works, open a Pull Request from `hardware` into `main`.
+2. **First thing next session:** copy `safety_filter_node.py` and `rl_point_nav/ros_point_nav_env.py` to the Burger (`~/rl_point_nav/`). They fix a Ctrl+C bug: the final zero command failed (`publisher's context is invalid`) and the safety filter kept re-sending the last FORWARD. The filter now sends zero if no `/cmd_vel_raw` arrives for 0.5 s. Not yet tested on the robot: check that Ctrl+C mid-run stops it. Until then, also Ctrl+C the safety filter to stop.
+3. Copy the remaining V2 obstacle-run logs from the Burger (`~/rl_point_nav/logs/`) into `rl_point_nav/results/`. The Mac lost SSH to the Pi near the end; try `sudo iw wlan0 set power_save off` on the Pi.
+4. Repeat obstacle runs about 5–10 times per setup to get success rates.
+5. Test the LLM mission pipeline again on the new IPs (`--server http://192.168.137.40:5001`).
+6. When it works, open a Pull Request from `hardware` into `main`.
 
 ## Simulation PC: next steps
 1. **Get the hardware work.** Review and merge the `hardware` → `main` Pull Request, then run `git switch sim && git pull origin main`. Or merge it directly: `git fetch && git merge origin/hardware`.
