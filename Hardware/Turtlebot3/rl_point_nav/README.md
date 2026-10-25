@@ -30,23 +30,37 @@ cd Hardware/Turtlebot3/rl_point_nav
 
 ## Real-size scene with a robot-mounted LiDAR (ROS 2 `/tb03/scan`)
 
-`FInalSceneDemo.usd` scales the Burger by about 4.5 × 6.8 × 4.0. A LiDAR placed on that robot (the usual "add a LiDAR to your robot" tutorial) inherits the stretch and sits inside the enlarged LDS housing, so it returns nothing. The scene's existing `ROS2PublishLaserScan` node was also never wired up. `make_realsize_scene.py` writes a **new** scene and leaves the original untouched:
+**Always start Isaac scripts with `./isaac_run.sh`** instead of `~/isaac-sim/python.sh`. If a terminal has the system ROS sourced (`/opt/ros/humble`, Python 3.10), Isaac's ROS 2 bridge (Python 3.11) fails to load. The wrapper clears that and uses Isaac's built-in ROS 2 Humble.
+
+`FInalSceneDemo.usd` scales the Burger by about 4.5 × 6.8 × 4.0. A LiDAR placed on that robot (the usual "add a LiDAR to your robot" tutorial) inherits the stretch and sits inside the enlarged LDS housing, so it returns nothing. The scene's existing `ROS2PublishLaserScan` node was also never wired up. `make_realsize_scene.py` writes a **new** scene, `~/Desktop/FInalSceneDemo_realsize.usd`, and leaves the original untouched:
 - the robot at its true size, standing on the floor;
 - the LiDAR as a child of the robot at the real `base_scan` mount (-0.032, 0, 0.172) m, with min range 0.12 m and max range 3.5 m like the LDS-01;
-- a ROS 2 graph publishing `sensor_msgs/LaserScan` on `/tb03/scan` (frame `tb03/base_scan`);
+- a ROS 2 graph publishing `sensor_msgs/LaserScan` on `/tb03/scan` (frame `tb03/base_scan`, about 26 Hz, 1066 rays over 360°);
+- drive fixes. The imported Burger only covers about 60% of the commanded motion on its own: its fixed rear caster drags, and its cylinder wheel contacts jitter. The caster becomes frictionless, and each wheel gets an invisible sphere collider;
 - stray and duplicate LiDAR prims switched off.
 
-It then plays the scene and checks that the LiDAR returns valid rays. If the sensor is blinded by its own housing, it hides only the LDS mesh and checks again.
+Checked on 2026-10-25:
+- `isaac_realsize_lidar_check.py`: a box placed 0.40 m ahead reads 0.388 m (Isaac) and 0.400 m (ROS 2 `/tb03/scan`). The robot stands still (0.1 mm drift).
+- One action in this scene:
+
+  | Action | Commanded | Original scaled scene | Real-size, no fixes | Real-size, fixed |
+  |---|---|---|---|---|
+  | FORWARD | 2.5 cm | 3.6 cm | 1.0 cm | **1.8 cm** |
+  | TURN | 11.5° | 5.0° | 4.9° | **8.4°** |
+
+  The remaining gap is mostly the wheels speeding up from standstill in each short action.
 
 ```bash
-~/isaac-sim/python.sh make_realsize_scene.py            # -> ~/Desktop/FInalSceneDemo_realsize.usd
-# see it: open the new scene in Isaac Sim, press Play, then in another terminal
-source /opt/ros/humble/setup.bash && ros2 topic hz /tb03/scan     # RViz: LaserScan on /tb03/scan
+cd Hardware/Turtlebot3/rl_point_nav
+./isaac_run.sh make_realsize_scene.py                # build the scene (log: ~/Desktop/FInalSceneDemo_realsize.log)
+./isaac_run.sh isaac_realsize_lidar_check.py         # box test; meanwhile in a ROS terminal: ros2 topic echo /tb03/scan --once
 # train on it (new model folder; V1B/V2 are not touched)
-TB3_SCENE_USD=~/Desktop/FInalSceneDemo_realsize.usd ~/isaac-sim/python.sh train_isaac_point_nav_lidar_ppo_v2.py \
+TB3_SCENE_USD=~/Desktop/FInalSceneDemo_realsize.usd ./isaac_run.sh train_isaac_point_nav_lidar_ppo_v2.py \
     --timesteps 200000 --output-name isaac_point_nav_lidar_ppo_v3_realsize
 ```
-In the real-size scene the training LiDAR also sits at the real `base_scan` (chosen automatically from the robot scale), so a policy trained there needs **no** mount correction on hardware. In `lidar_sectors.py`, set `SIM_MOUNT_M = REAL_MOUNT_M` for that policy. Policies trained on the scaled scene (V2) still need the +0.10 m correction.
+In the real-size scene, the training LiDAR (the RL env's own top-level sensor) also sits at the real `base_scan`. The env picks this automatically from the robot scale.
+
+Isaac sometimes segfaults while shutting down after training prints `complete ... final_model.zip`. The model is already saved by then.
 
 ## Hardware PC: run the policy on the real Burger
 

@@ -11,6 +11,10 @@ so it returns nothing. This script writes a NEW scene (the original is never sav
   farRangeM = 3.5 m (TurtleBot3 LDS-01);
 * stray and duplicate LiDAR prims deactivated, and the unwired ROS2PublishLaserScan
   node removed;
+* drive fixes for the imported Burger, which on its own covers only ~60% of the
+  commanded motion: the fixed rear caster box gets a frictionless material (it
+  dragged on the floor) and each wheel's cylinder collider is replaced by an
+  invisible sphere of the wheel radius (the cylinder contact made wheel speed jitter);
 * a ROS 2 graph: OnPlaybackTick -> RunOneSimulationFrame -> CreateRenderProduct ->
   ROS2RtxLidarHelper publishing sensor_msgs/LaserScan on /tb03/scan
   (frame tb03/base_scan).
@@ -19,7 +23,7 @@ It then plays the scene and checks the FlatScan output. If almost every ray is
 invalid (the sensor sits inside the LDS housing mesh), it hides only the LDS visual
 mesh (collision untouched), saves again and re-checks.
 
-  ~/isaac-sim/python.sh make_realsize_scene.py [--out PATH] [--gui]
+  ./isaac_run.sh make_realsize_scene.py [--out PATH] [--gui]   (log: ~/Desktop/FInalSceneDemo_realsize.log)
 
 Train on it with:  TB3_SCENE_USD=<out> ~/isaac-sim/python.sh train_isaac_point_nav_lidar_ppo_v2.py \
                        --output-name isaac_point_nav_lidar_ppo_v3_realsize
@@ -58,12 +62,23 @@ LIDAR_SETTINGS = {
 SCAN_TOPIC = "/tb03/scan"
 SCAN_FRAME = "tb03/base_scan"
 FLOOR_CLEARANCE_M = 0.002
+WHEEL_RADIUS_M = 0.033
+CASTER_COLLISIONS = f"{ROBOT}/a__namespace_caster_back_link/collisions"
+WHEEL_LINKS = (f"{ROBOT}/a__namespace_wheel_left_link", f"{ROBOT}/a__namespace_wheel_right_link")
+CASTER_MATERIAL = "/World/PhysicsMaterials/caster_frictionless"
 MIN_VALID_FRACTION = 0.10
 TAG = "[TB3_REALSIZE]"
 
 
+LOG_FILE = DEFAULT_OUT.with_suffix(".log")
+
+
 def log(message: str) -> None:
-    print(f"{TAG} {message}", flush=True)
+    # Kit can swallow stdout, so every line also goes to LOG_FILE.
+    line = f"{TAG} {message}"
+    print(line, flush=True)
+    with open(LOG_FILE, "a") as handle:
+        handle.write(line + "\n")
 
 
 def main() -> None:
@@ -77,9 +92,15 @@ def main() -> None:
 
     from isaacsim import SimulationApp
 
-    app = SimulationApp({"headless": not args.gui, "open_usd": str(SOURCE_SCENE)})
+    LOG_FILE.write_text("")
+    app = SimulationApp({"headless": not args.gui})
     try:
         build(app, out)
+    except Exception:
+        import traceback
+
+        log("FAILED:\n" + traceback.format_exc())
+        raise
     finally:
         app.close()
 
@@ -91,11 +112,24 @@ def build(app, out: Path) -> None:
     from isaacsim.core.utils.extensions import enable_extension
     from pxr import Gf, Sdf, UsdGeom
 
+    # Enable the bridge BEFORE opening the scene: enabling it afterwards replaces the stage.
     enable_extension("isaacsim.ros2.bridge")
-    context = omni.usd.get_context()
-    while context.get_stage_loading_status()[2] > 0:
+    for _ in range(10):
         app.update()
-    stage = context.get_stage()
+    context = omni.usd.get_context()
+    if not context.open_stage(str(SOURCE_SCENE)):
+        raise RuntimeError(f"Could not open {SOURCE_SCENE}")
+    # Enabling the bridge can restart stage loading; wait until the robot is really there.
+    for _ in range(600):
+        app.update()
+        stage = context.get_stage()
+        if (context.get_stage_loading_status()[2] == 0 and stage is not None
+                and stage.GetPrimAtPath(ROBOT).IsValid()):
+            break
+    else:
+        root = stage.GetRootLayer().identifier if stage is not None else None
+        raise RuntimeError(f"Scene did not finish loading (root layer {root})")
+    log(f"loaded {stage.GetRootLayer().identifier}")
     for path in (ROBOT, LIDAR, LIDAR_MOUNT, FLOOR):
         if not stage.GetPrimAtPath(path).IsValid():
             raise RuntimeError(f"Expected prim is missing: {path}")
@@ -115,7 +149,10 @@ def build(app, out: Path) -> None:
     log(f"robot scale {tuple(round(v, 3) for v in old_scale)} -> (1, 1, 1); "
         f"root z {translate[2]:.3f} -> {floor_z + FLOOR_CLEARANCE_M / meters:.3f} (floor {floor_z:.3f})")
 
-    # 2) LiDAR on the robot at the real base_scan mount.
+    # 2) Drive fixes: frictionless caster, sphere wheel colliders.
+    fix_drive(stage, meters)
+
+    # 3) LiDAR on the robot at the real base_scan mount.
     for path in DEACTIVATE:
         prim = stage.GetPrimAtPath(path)
         if prim.IsValid():
@@ -132,7 +169,7 @@ def build(app, out: Path) -> None:
         attribute.Set(value)
     log(f"LiDAR {LIDAR} at base_scan {BASE_SCAN_XYZ_M} m, settings {LIDAR_SETTINGS}")
 
-    # 3) ROS 2 graph (replaces the unwired publisher in the robot graph).
+    # 4) ROS 2 graph (replaces the unwired publisher in the robot graph).
     if stage.GetPrimAtPath(f"{OLD_SCAN_GRAPH}/{OLD_SCAN_NODE}").IsValid():
         og.Controller.edit(OLD_SCAN_GRAPH, {og.Controller.Keys.DELETE_NODES: [OLD_SCAN_NODE]})
         log(f"removed unwired {OLD_SCAN_GRAPH}/{OLD_SCAN_NODE}")
@@ -176,6 +213,40 @@ def build(app, out: Path) -> None:
         if not verify(app, timeline):
             raise RuntimeError("LiDAR still returns almost no valid rays; scene saved for inspection")
     log(f"DONE: {out}")
+
+
+def fix_drive(stage, meters: float) -> None:
+    from pxr import Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
+
+    material = UsdShade.Material.Define(stage, CASTER_MATERIAL)
+    api = UsdPhysics.MaterialAPI.Apply(material.GetPrim())
+    api.CreateStaticFrictionAttr(0.0)
+    api.CreateDynamicFrictionAttr(0.0)
+    api.CreateRestitutionAttr(0.0)
+    material.GetPrim().CreateAttribute("physxMaterial:frictionCombineMode", Sdf.ValueTypeNames.Token).Set("min")
+    # The collision subtrees are instanced; un-instance them so the edits apply.
+    caster = stage.GetPrimAtPath(CASTER_COLLISIONS)
+    caster.SetInstanceable(False)
+    bound = 0
+    for prim in Usd.PrimRange(caster):
+        if prim.HasAPI(UsdPhysics.CollisionAPI):
+            UsdShade.MaterialBindingAPI.Apply(prim).Bind(material, UsdShade.Tokens.strongerThanDescendants, "physics")
+            bound += 1
+    log(f"caster: frictionless material on {bound} collider(s)")
+
+    for link in WHEEL_LINKS:
+        collisions = stage.GetPrimAtPath(f"{link}/collisions")
+        collisions.SetInstanceable(False)
+        disabled = 0
+        for prim in Usd.PrimRange(collisions):
+            if prim.HasAPI(UsdPhysics.CollisionAPI):
+                UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Set(False)
+                disabled += 1
+        sphere = UsdGeom.Sphere.Define(stage, f"{link}/sphere_collider")
+        sphere.CreateRadiusAttr(WHEEL_RADIUS_M / meters)
+        UsdPhysics.CollisionAPI.Apply(sphere.GetPrim())
+        sphere.MakeInvisible()
+        log(f"{link.rsplit('/', 1)[-1]}: {disabled} cylinder collider(s) off, sphere r={WHEEL_RADIUS_M} m on")
 
 
 def save(context, out: Path) -> None:
