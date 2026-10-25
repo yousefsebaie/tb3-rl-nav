@@ -8,6 +8,7 @@
   --show-robot   select visible robot BEFORE physics; presentation only, not evaluation
   --no-lidar-view  do not draw the LiDAR point cloud in the viewport (drawn by default)
   --auto         run all episodes back to back without waiting for Enter
+  --profile P    v2 or v3 settings; default: models/<run>/profile.txt next to --model, else v2
 
 Each step prints the action, pose, goal distance and front/left/right clearances.
 The goal is shown as a green disc on the ground; pooled obstacles are orange boxes.
@@ -24,10 +25,10 @@ import numpy as np
 
 try:
     from .config import PointNavAction
-    from .isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig
+    from .isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig, v3_lidar_config
 except ImportError:  # pragma: no cover - direct-script convenience only
     from config import PointNavAction
-    from isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig
+    from isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig, v3_lidar_config
 
 
 ACTION_PAUSE_S = 0.20
@@ -138,6 +139,7 @@ def main() -> None:
     parser.add_argument("--show-robot", action="store_true")
     parser.add_argument("--no-lidar-view", action="store_true")
     parser.add_argument("--auto", action="store_true")
+    parser.add_argument("--profile", choices=("v2", "v3"), default=None)
     args = parser.parse_args()
 
     if args.model is not None:
@@ -149,9 +151,14 @@ def main() -> None:
     if args.show_robot:
         print(f"{TAG} WARNING: --show-robot changes LiDAR perception. "
               "Presentation only; do not use outcomes for quantitative evaluation.", flush=True)
-    env = IsaacPointNavLidarEnv(
-        headless=False, lidar_config=IsaacLidarNavConfig(hide_robot_visuals=not args.show_robot)
-    )
+    profile = args.profile
+    if profile is None and args.model is not None and (args.model.parent / "profile.txt").is_file():
+        profile = (args.model.parent / "profile.txt").read_text().strip()
+    profile = profile or "v2"
+    print(f"{TAG} profile={profile}", flush=True)
+    lidar_config = (v3_lidar_config(hide_robot_visuals=not args.show_robot) if profile == "v3"
+                    else IsaacLidarNavConfig(hide_robot_visuals=not args.show_robot))
+    env = IsaacPointNavLidarEnv(headless=False, lidar_config=lidar_config)
     try:
         if not args.no_lidar_view:
             # Draw what the policy's LiDAR sees (debug point cloud in the viewport).

@@ -20,6 +20,15 @@ Observation (6D):
     clearance = clip(min sector range / clearance_normalization_m, 0, 1)
 
 V1B's 3D model cannot be used with this environment; V2 must be trained.
+
+V3 (``v3_lidar_config()``) keeps the observation layout but adds what the real
+Burger showed (docs/STATUS.md, 2026-10-25), all off by default so V2 is unchanged:
+* a proximity penalty when the robot centre is within 0.30 m of an obstacle surface
+  (the safety filter's stop distance), not only on contact;
+* LiDAR noise, per-ray dropout, a 0.15 m minimum range, and whole-sector dropouts that
+  read like the hardware's empty-sector rule (open 1.0, or 0.0 if it was already close);
+* obstacle widths drawn from 0.12-0.40 m per episode;
+* a front sector of +/-18 deg, matching the safety filter.
 """
 
 from __future__ import annotations
@@ -111,10 +120,38 @@ class IsaacLidarNavConfig:
     robot_radius_m: float = 0.105
     collision_penalty: float = 10.0
 
+    # V3 additions (0 / None = off, i.e. V2 behaviour).
+    obstacle_size_range_m: Optional[tuple[float, float]] = None   # per-episode width range
+    proximity_threshold_m: float = 0.0       # centre-to-surface distance that starts the penalty
+    proximity_penalty_max: float = 0.0       # per-step penalty at contact distance (robot_radius_m)
+    lidar_noise_std_m: float = 0.0           # Gaussian range noise
+    lidar_ray_dropout: float = 0.0           # probability a ray returns nothing
+    lidar_sector_dropout: float = 0.0        # per-step probability a whole sector returns nothing
+    lidar_min_valid_m: Optional[float] = None  # rays closer than this return nothing (LDS-02 ~0.15 m)
+    ambiguous_close_m: float = 0.25          # hardware empty-sector rule (lidar_sectors.py)
+
     # Hide the scaled robot's non-collision visual geometry (runtime only, never saved).
     hide_robot_visuals: bool = True
     robot_proxy_height_m: float = 0.02
     show_footprint_disc: bool = False  # optional GUI footprint disc; off by default
+
+
+def v3_lidar_config(**overrides) -> "IsaacLidarNavConfig":
+    """V2 plus the real-robot lessons (see module docstring)."""
+    values = dict(
+        front_sector_deg=(-18.0, 18.0),
+        left_sector_deg=(18.0, 120.0),
+        right_sector_deg=(-120.0, -18.0),
+        obstacle_size_range_m=(0.12, 0.40),
+        proximity_threshold_m=0.30,
+        proximity_penalty_max=0.30,
+        lidar_noise_std_m=0.015,
+        lidar_ray_dropout=0.10,
+        lidar_sector_dropout=0.05,
+        lidar_min_valid_m=0.15,
+    )
+    values.update(overrides)
+    return IsaacLidarNavConfig(**values)
 
 
 def _v2_point_nav_config() -> PointNavConfig:
@@ -212,9 +249,11 @@ class _LidarSyncedSimulation:
     def __init__(self, simulation_context, sync) -> None:
         self._simulation_context = simulation_context
         self._sync = sync
+        self.frames = 0
 
     def step(self, render: bool = True) -> None:
         del render
+        self.frames += 1
         self._sync()
         self._simulation_context.step(render=True)
         self._sync()
@@ -255,6 +294,10 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         self._meters_per_unit = 1.0
         self._obstacle_paths: list[str] = []
         self._obstacle_xy: list[Optional[tuple[float, float]]] = []
+        self._obstacle_size: list[float] = []
+        self._readings_cache: Optional[tuple[int, dict]] = None
+        self._previous_clearance: dict[str, float] = {}
+        self._last_proximity_penalty = 0.0
         self._goal_marker = None
         self._robot_proxy = None
         # (path, had_authored_visibility, original_visibility) for every prim hidden at startup.
@@ -346,6 +389,7 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
             cube.CreateDisplayColorAttr([Gf.Vec3f(0.85, 0.35, 0.10)])
             self._obstacle_paths.append(path)
             self._obstacle_xy.append(None)
+            self._obstacle_size.append(cfg.obstacle_size_xy_m)
             self._park_obstacle(index)
         print(f"[TB03_ENV_V2] obstacle pool: {cfg.obstacle_count} prims under {OBSTACLE_ROOT}", flush=True)
 
@@ -525,7 +569,10 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
                                              LiDAR near range; clearance = 0.0 (blocked)
         valid rays == 0, baseline had none -> open space; clearance = inf
         """
-        ranges = self._current_ranges()
+        frame = getattr(self._simulation_context, "frames", None)
+        if self._readings_cache is not None and frame is not None and self._readings_cache[0] == frame:
+            return self._readings_cache[1]
+        ranges = self._perturb_ranges(self._current_ranges())
         readings = {}
         for name, mask in self._sector_masks.items():
             values = ranges[mask & ~self._self_mask]
@@ -536,7 +583,34 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
             else:
                 clearance = 0.0 if invalid else math.inf
             readings[name] = {"valid_rays": int(values.size), "invalid": invalid, "clearance_m": clearance}
+        cfg = self.lidar_config
+        if cfg.lidar_sector_dropout > 0.0:
+            for name, reading in readings.items():
+                if self.np_random.random() < cfg.lidar_sector_dropout:
+                    # Real LDS: a sector with no return reads open, unless it was already close.
+                    previous = self._previous_clearance.get(name, math.inf)
+                    reading.update(valid_rays=0, invalid=False, dropped=True,
+                                   clearance_m=0.0 if previous < cfg.ambiguous_close_m else math.inf)
+        self._previous_clearance = {name: r["clearance_m"] for name, r in readings.items()}
+        if frame is not None:
+            self._readings_cache = (frame, readings)
         return readings
+
+    def _perturb_ranges(self, ranges: np.ndarray) -> np.ndarray:
+        """V3 sensor model: noise, per-ray dropout, minimum valid range (no-op for V2)."""
+        cfg = self.lidar_config
+        if not (cfg.lidar_noise_std_m > 0.0 or cfg.lidar_ray_dropout > 0.0 or cfg.lidar_min_valid_m):
+            return ranges
+        noisy = ranges.copy()
+        finite = np.isfinite(noisy)
+        if cfg.lidar_noise_std_m > 0.0:
+            noisy[finite] += self.np_random.normal(0.0, cfg.lidar_noise_std_m, int(finite.sum()))
+        if cfg.lidar_ray_dropout > 0.0:
+            noisy[self.np_random.random(noisy.size) < cfg.lidar_ray_dropout] = np.nan
+        if cfg.lidar_min_valid_m:
+            with np.errstate(invalid="ignore"):
+                noisy[noisy < cfg.lidar_min_valid_m] = np.nan
+        return noisy
 
     def sector_clearances_m(self) -> dict[str, float]:
         """Clearance per sector in meters (0.0 = blocked/too close, inf = open space)."""
@@ -565,6 +639,9 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         info["lidar_sectors"] = readings
         info["collision"] = self._last_collision
         info["obstacles"] = [xy for xy in self._obstacle_xy if xy is not None]
+        info["obstacle_sizes_m"] = [s for xy, s in zip(self._obstacle_xy, self._obstacle_size) if xy is not None]
+        info["obstacle_distance_m"] = self._obstacle_surface_distance(state)
+        info["proximity_penalty"] = self._last_proximity_penalty
         info["stale_scan_reads"] = self._stale_scan_reads
         return info
 
@@ -623,14 +700,20 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
             raise ValueError(f"Invalid V2 placement coordinates (stage units): {local}")
         return Gf.Vec3d(*local)
 
-    def _set_obstacle_xy(self, index: int, xy: tuple[float, float]) -> None:
+    def _set_obstacle_xy(self, index: int, xy: tuple[float, float], size: Optional[float] = None) -> None:
         from pxr import Gf, UsdGeom
 
-        z = self._ground_z + 0.5 * self.lidar_config.obstacle_height_m
+        cfg = self.lidar_config
+        z = self._ground_z + 0.5 * cfg.obstacle_height_m
         prim = self._stage.GetPrimAtPath(self._obstacle_paths[index])
-        UsdGeom.XformCommonAPI(prim).SetTranslate(
-            self._placement_xyz(xy[0], xy[1], z)
-        )
+        api = UsdGeom.XformCommonAPI(prim)
+        api.SetTranslate(self._placement_xyz(xy[0], xy[1], z))
+        size = cfg.obstacle_size_xy_m if size is None else float(size)
+        if size != self._obstacle_size[index]:
+            # Resize the existing pooled prim (never delete / re-create while the LiDAR runs).
+            units = self._meters_per_unit
+            api.SetScale(Gf.Vec3f(size / units, size / units, cfg.obstacle_height_m / units))
+            self._obstacle_size[index] = size
 
     def _park_obstacle(self, index: int) -> None:
         cfg = self.lidar_config
@@ -643,35 +726,50 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         for index in range(len(self._obstacle_paths)):
             if index < len(positions):
                 xy = (float(positions[index][0]), float(positions[index][1]))
-                self._set_obstacle_xy(index, xy)
+                size = float(positions[index][2]) if len(positions[index]) > 2 else None
+                self._set_obstacle_xy(index, xy, size)
                 self._obstacle_xy[index] = xy
             else:
                 self._park_obstacle(index)
 
-    def _sample_obstacles(self, start: tuple[float, float], goal: tuple[float, float]) -> list[tuple[float, float]]:
+    def _sample_obstacles(self, start: tuple[float, float], goal: tuple[float, float]) -> list[tuple]:
+        """V2: (x, y) at the fixed width. V3 (obstacle_size_range_m): (x, y, width)."""
         cfg = self.lidar_config
         rng = self.np_random
-        placed: list[tuple[float, float]] = []
+        sized = cfg.obstacle_size_range_m is not None
+        placed: list[tuple] = []
 
-        def valid(p) -> bool:
+        def draw_size() -> float:
+            return float(rng.uniform(*cfg.obstacle_size_range_m)) if sized else cfg.obstacle_size_xy_m
+
+        def valid(p, size) -> bool:
+            # Clearances are measured to the box surface (V2 boxes: same as before).
+            extra = 0.5 * (size - cfg.obstacle_size_xy_m)
             return (
-                math.dist(p, start) >= cfg.min_obstacle_start_clearance_m
-                and math.dist(p, goal) >= cfg.min_obstacle_goal_clearance_m
-                and all(math.dist(p, q) >= cfg.min_obstacle_spacing_m for q in placed)
+                math.dist(p, start) >= cfg.min_obstacle_start_clearance_m + extra
+                and math.dist(p, goal) >= cfg.min_obstacle_goal_clearance_m + extra
+                and all(math.dist(p, q[:2]) >= cfg.min_obstacle_spacing_m + extra
+                        + 0.5 * ((q[2] if len(q) > 2 else cfg.obstacle_size_xy_m) - cfg.obstacle_size_xy_m)
+                        for q in placed)
             )
+
+        def item(p, size):
+            return (p[0], p[1], size) if sized else p
 
         dx, dy = goal[0] - start[0], goal[1] - start[1]
         length = math.hypot(dx, dy)
-        lo = cfg.min_obstacle_start_clearance_m
-        hi = length - cfg.min_obstacle_goal_clearance_m
+        size = draw_size()
+        extra = 0.5 * (size - cfg.obstacle_size_xy_m)
+        lo = cfg.min_obstacle_start_clearance_m + extra
+        hi = length - cfg.min_obstacle_goal_clearance_m - extra
         if length > 0.0 and hi > lo and rng.random() < cfg.blocking_probability:
             ux, uy = dx / length, dy / length
             for _ in range(cfg.placement_attempts):
                 s = rng.uniform(lo, hi)
                 lateral = rng.uniform(-cfg.blocking_lateral_offset_m, cfg.blocking_lateral_offset_m)
                 p = (start[0] + s * ux - lateral * uy, start[1] + s * uy + lateral * ux)
-                if valid(p):
-                    placed.append(p)
+                if valid(p, size):
+                    placed.append(item(p, size))
                     break
 
         n_distractors = int(rng.integers(0, cfg.max_distractors + 1))
@@ -679,24 +777,40 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         x_lo, x_hi = min(start[0], goal[0]) - cfg.distractor_margin_m, max(start[0], goal[0]) + cfg.distractor_margin_m
         y_lo, y_hi = min(start[1], goal[1]) - cfg.distractor_margin_m, max(start[1], goal[1]) + cfg.distractor_margin_m
         for _ in range(n_distractors):
+            size = draw_size()
             for _ in range(cfg.placement_attempts):
                 p = (rng.uniform(x_lo, x_hi), rng.uniform(y_lo, y_hi))
-                if valid(p):
-                    placed.append(p)
+                if valid(p, size):
+                    placed.append(item(p, size))
                     break
         return placed
 
-    def _collides(self, state: IsaacPoseState) -> bool:
-        """Robot footprint circle vs axis-aligned obstacle boxes (ground truth)."""
-        half = 0.5 * self.lidar_config.obstacle_size_xy_m
-        for xy in self._obstacle_xy:
+    def _obstacle_surface_distance(self, state: IsaacPoseState) -> float:
+        """Robot centre to the nearest obstacle box surface (ground truth), inf if none."""
+        best = math.inf
+        for xy, size in zip(self._obstacle_xy, self._obstacle_size):
             if xy is None:
                 continue
+            half = 0.5 * size
             dx = max(abs(state.x - xy[0]) - half, 0.0)
             dy = max(abs(state.y - xy[1]) - half, 0.0)
-            if math.hypot(dx, dy) < self.lidar_config.robot_radius_m:
-                return True
-        return False
+            best = min(best, math.hypot(dx, dy))
+        return best
+
+    def _collides(self, state: IsaacPoseState) -> bool:
+        """Robot footprint circle vs axis-aligned obstacle boxes (ground truth)."""
+        return self._obstacle_surface_distance(state) < self.lidar_config.robot_radius_m
+
+    def _proximity_penalty(self, state: IsaacPoseState) -> float:
+        """V3: 0 beyond proximity_threshold_m, rising linearly to the max at contact."""
+        cfg = self.lidar_config
+        if cfg.proximity_threshold_m <= 0.0 or cfg.proximity_penalty_max <= 0.0:
+            return 0.0
+        distance = self._obstacle_surface_distance(state)
+        if distance >= cfg.proximity_threshold_m:
+            return 0.0
+        span = max(cfg.proximity_threshold_m - cfg.robot_radius_m, 1e-6)
+        return cfg.proximity_penalty_max * min((cfg.proximity_threshold_m - distance) / span, 1.0)
 
     def _configure_robot_visuals(self, visible: bool) -> int:
         """Only the four validated visual roots, before any physics views exist."""
@@ -813,6 +927,9 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         obstacles = options["obstacles"] if "obstacles" in options else self._sample_obstacles(start, goal)
         self._place_obstacles(obstacles)
         self._last_collision = False
+        self._last_proximity_penalty = 0.0
+        self._previous_clearance = {}
+        self._readings_cache = None
         self._set_goal(goal)
         self._move_goal_marker()
 
@@ -832,6 +949,9 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         observation, reward, terminated, truncated, info = super().step(action)
         state = self._state()
         self._move_robot_proxy(state)
+        self._last_proximity_penalty = self._proximity_penalty(state)
+        reward -= self._last_proximity_penalty
+        info["proximity_penalty"] = self._last_proximity_penalty
         if not terminated and self._collides(state):
             self._last_collision = True
             reward -= self.lidar_config.collision_penalty

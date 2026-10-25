@@ -73,6 +73,23 @@ What the real robot showed, for retraining:
 - V2's habitual first left turn shows up on every run.
 - The safety filter checks ±18°, but the policy's `front` sector is ±30°. Consider matching them.
 
+## V3 training (simulation PC, started 2026-10-25)
+V3 is training now: 1M steps, about 3 days. Watch it with `cd Hardware/Turtlebot3/rl_point_nav && ./train_long.sh`. Models go to `models/isaac_point_nav_lidar_ppo_v3/`.
+
+Changes from V2. They come from the real-robot results above and are all in `v3_lidar_config()`; V2 is unchanged:
+- **Real-size scene:** `FInalSceneDemo_realsize.usd`, built by `make_realsize_scene.py`. The Burger is at true scale, and the drive is fixed: frictionless caster, sphere wheels. One FORWARD is 1.8 cm and one TURN is 8.4°; the real robot does about 2.8 cm and 9–11°. The training LiDAR sits at the real `base_scan` (-0.032, 0, 0.172) m.
+- **Proximity penalty:** up to −0.30 per step when the robot centre is within 0.30 m of an obstacle surface, on top of −10 for contact.
+- **LiDAR model:** ±1.5 cm noise, 10% of rays dropped, no returns under 0.15 m. Each sector also drops out 5% of the time, and then reads like the hardware's empty-sector rule: open (1.0), or 0.0 if it was already under 0.25 m.
+- **Obstacles:** 12–40 cm wide per episode.
+- **Front sector ±18°,** matching the safety filter. Left is 18–120°, right is −120…−18°.
+
+**To run a V3 model on the Burger, `lidar_sectors.py` needs V3 settings.** V2 settings will give wrong inputs:
+- `SIM_MOUNT_M = REAL_MOUNT_M`. The sim LiDAR is at the real mount now, so no +0.10 m shift.
+- `SECTORS_DEG = {"front": (-18, 18), "left": (18, 120), "right": (-120, -18)}`.
+- Keep `SIM_NEAR_RANGE_M = 0.10` and the empty-sector rule.
+
+`profile.txt` in each model folder says which settings a model needs. Export to `.npz` with `export_policy_numpy.py`, as before.
+
 ## Hardware PC: next steps
 1. Bringup, safety filter and the RL runner all work on the Burger (see the README and the quick reference below). Three SSH windows: bringup, `python3 ~/rl_point_nav/safety_filter_node.py`, RL.
 2. Copy the remaining V2 obstacle-run logs from the Burger (`~/rl_point_nav/logs/`) into `rl_point_nav/results/`. The Mac lost SSH to the Pi near the end; try `sudo iw wlan0 set power_save off` on the Pi.

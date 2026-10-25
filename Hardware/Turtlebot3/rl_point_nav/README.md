@@ -32,13 +32,13 @@ cd Hardware/Turtlebot3/rl_point_nav
 
 ```bash
 cd Hardware/Turtlebot3/rl_point_nav
-./train_long.sh                     # 1,000,000 steps on the real-size scene; resumes from the latest checkpoint
+./train_long.sh                     # V3: 1,000,000 steps on the real-size scene; resumes from the latest checkpoint
 TIMESTEPS=2000000 ./train_long.sh   # go further later (continues from the newest checkpoint)
-python3 training_progress.py results/train_isaac_point_nav_lidar_ppo_v3_realsize.log \
-    --models models/isaac_point_nav_lidar_ppo_v3_realsize      # reopen the progress view any time
+python3 training_progress.py results/train_isaac_point_nav_lidar_ppo_v3.log \
+    --models models/isaac_point_nav_lidar_ppo_v3      # reopen the progress view any time
 pkill -f "kit/python/bin/python3 train_isaac"                    # stop training (checkpoints every 10k steps are kept)
 ```
-Training runs detached and survives closing the terminal or VS Code. The view shows:
+V3 settings (proximity penalty, LiDAR noise and dropout, 12–40 cm obstacles, ±18° front) are in `v3_lidar_config()`; see `docs/STATUS.md`. A V3 model needs `--profile v3` (read automatically from `profile.txt` next to the model) and V3 sector settings on the hardware. Training runs detached and survives closing the terminal or VS Code. The view shows:
 - a progress bar, speed and ETA;
 - success, collision and timeout rates over the last 100 episodes, plus a success trend;
 - the latest checkpoint.

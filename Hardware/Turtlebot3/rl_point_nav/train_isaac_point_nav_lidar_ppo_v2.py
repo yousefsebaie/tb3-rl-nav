@@ -9,6 +9,8 @@ or written.
   --gui           train with the Isaac GUI (slower; default headless)
   --output-name D model folder under models/ (default isaac_point_nav_lidar_ppo_v2);
                   use a new name when training on another scene (TB3_SCENE_USD)
+  --profile P     v2 (default) or v3: real-robot lessons (proximity penalty, LiDAR
+                  noise/dropout, 12-40 cm obstacles, +/-18 deg front); see v3_lidar_config()
   --resume PATH   continue from a checkpoint .zip; --timesteps is then the TOTAL
                   to reach (steps already in the checkpoint count)
 
@@ -25,9 +27,9 @@ from pathlib import Path
 import time
 
 try:
-    from .isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig
+    from .isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig, v3_lidar_config
 except ImportError:  # pragma: no cover - direct-script convenience only
-    from isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig
+    from isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig, v3_lidar_config
 
 
 DEFAULT_TIMESTEPS = 100_000
@@ -44,6 +46,7 @@ def main() -> None:
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--output-name", default=OUTPUT_DIR.name)
     parser.add_argument("--resume", type=Path, default=None)
+    parser.add_argument("--profile", choices=("v2", "v3"), default="v2")
     args = parser.parse_args()
     output_dir = MODELS_DIR / args.output_name
 
@@ -113,7 +116,12 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[TB03_PPO_V2] Creating {'GUI' if args.gui else 'headless'} V2 environment", flush=True)
-    env = IsaacPointNavLidarEnv(headless=not args.gui, lidar_config=IsaacLidarNavConfig(hide_robot_visuals=True))
+    lidar_config = (v3_lidar_config(hide_robot_visuals=True) if args.profile == "v3"
+                    else IsaacLidarNavConfig(hide_robot_visuals=True))
+    print(f"[TB03_PPO_V2] profile={args.profile} {lidar_config}", flush=True)
+    # The policy only works with the profile it was trained on (sector angles differ).
+    (output_dir / "profile.txt").write_text(args.profile + "\n")
+    env = IsaacPointNavLidarEnv(headless=not args.gui, lidar_config=lidar_config)
     print("[TB03_PPO_V2] Environment ready; constructing PPO", flush=True)
     stats_callback = EpisodeStatsCallback(env.isaac_config.goal_tolerance_m, args.timesteps)
     try:
