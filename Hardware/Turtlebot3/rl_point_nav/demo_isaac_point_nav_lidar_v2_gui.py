@@ -6,6 +6,8 @@
                  observation, to inspect the environment before training
   --random N     number of extra randomly sampled episodes (default 3)
   --show-robot   select visible robot BEFORE physics; presentation only, not evaluation
+  --no-lidar-view  do not draw the LiDAR point cloud in the viewport (drawn by default)
+  --auto         run all episodes back to back without waiting for Enter
 
 Each step prints the action, pose, goal distance and front/left/right clearances.
 The goal is shown as a green disc on the ground; pooled obstacles are orange boxes.
@@ -134,6 +136,8 @@ def main() -> None:
     parser.add_argument("--model", type=Path, default=None)
     parser.add_argument("--random", type=int, default=3)
     parser.add_argument("--show-robot", action="store_true")
+    parser.add_argument("--no-lidar-view", action="store_true")
+    parser.add_argument("--auto", action="store_true")
     args = parser.parse_args()
 
     if args.model is not None:
@@ -149,6 +153,10 @@ def main() -> None:
         headless=False, lidar_config=IsaacLidarNavConfig(hide_robot_visuals=not args.show_robot)
     )
     try:
+        if not args.no_lidar_view:
+            # Draw what the policy's LiDAR sees (debug point cloud in the viewport).
+            env._lidar.enable_visualization()
+            print(f"{TAG} LiDAR point cloud drawn in the viewport", flush=True)
         if args.model is not None:
             from stable_baselines3 import PPO
 
@@ -163,10 +171,14 @@ def main() -> None:
         for index, (label, options) in enumerate(episodes):
             outcomes.append((label, _run_episode(env, policy, label, options)))
             if index < len(episodes) - 1:
-                input(f"{TAG} {label} complete. Press Enter for the next episode... ")
+                if args.auto:
+                    env.settle_scan(60)
+                else:
+                    input(f"{TAG} {label} complete. Press Enter for the next episode... ")
         for label, outcome in outcomes:
             print(f"{TAG} SUMMARY {label:<18} {outcome}", flush=True)
-        input(f"{TAG} All episodes complete. Press Enter to close Isaac Sim... ")
+        if not args.auto:
+            input(f"{TAG} All episodes complete. Press Enter to close Isaac Sim... ")
     finally:
         env.close()
 
