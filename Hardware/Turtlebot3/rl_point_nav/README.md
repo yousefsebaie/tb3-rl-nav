@@ -28,6 +28,23 @@ cd Hardware/Turtlebot3/rl_point_nav
 ~/isaac-sim/python.sh eval_lidar_vs_nolidar.py --v2-model models/isaac_point_nav_lidar_ppo_v2/checkpoint_170000_steps.zip
 ```
 
+## Long headless training with live progress
+
+```bash
+cd Hardware/Turtlebot3/rl_point_nav
+./train_long.sh                     # 1,000,000 steps on the real-size scene; resumes from the latest checkpoint
+TIMESTEPS=2000000 ./train_long.sh   # go further later (continues from the newest checkpoint)
+python3 training_progress.py results/train_isaac_point_nav_lidar_ppo_v3_realsize.log \
+    --models models/isaac_point_nav_lidar_ppo_v3_realsize      # reopen the progress view any time
+pkill -f "kit/python/bin/python3 train_isaac"                    # stop training (checkpoints every 10k steps are kept)
+```
+Training runs detached and survives closing the terminal or VS Code. The view shows:
+- a progress bar, speed and ETA;
+- success, collision and timeout rates over the last 100 episodes, plus a success trend;
+- the latest checkpoint.
+
+`Ctrl-C` closes only the view. Speed is about 3.4 steps/s (about 12k per hour), so 1M steps takes about 3 days. It's slower while an Isaac window is open.
+
 ## Real-size scene with a robot-mounted LiDAR (ROS 2 `/tb03/scan`)
 
 **Always start Isaac scripts with `./isaac_run.sh`** instead of `~/isaac-sim/python.sh`. If a terminal has the system ROS sourced (`/opt/ros/humble`, Python 3.10), Isaac's ROS 2 bridge (Python 3.11) fails to load. The wrapper clears that and uses Isaac's built-in ROS 2 Humble.

@@ -9,12 +9,20 @@ or written.
   --gui           train with the Isaac GUI (slower; default headless)
   --output-name D model folder under models/ (default isaac_point_nav_lidar_ppo_v2);
                   use a new name when training on another scene (TB3_SCENE_USD)
+  --resume PATH   continue from a checkpoint .zip; --timesteps is then the TOTAL
+                  to reach (steps already in the checkpoint count)
+
+Each finished episode prints one [TB03_PROGRESS] line (steps, %, speed, ETA and
+success/collision rates over the last 100 episodes); training_progress.py turns
+the log into a live terminal view.
 """
 
 from __future__ import annotations
 
 import argparse
+from collections import deque
 from pathlib import Path
+import time
 
 try:
     from .isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, IsaacLidarNavConfig
@@ -35,6 +43,7 @@ def main() -> None:
     parser.add_argument("--timesteps", type=int, default=DEFAULT_TIMESTEPS)
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--output-name", default=OUTPUT_DIR.name)
+    parser.add_argument("--resume", type=Path, default=None)
     args = parser.parse_args()
     output_dir = MODELS_DIR / args.output_name
 
@@ -51,12 +60,20 @@ def main() -> None:
     class EpisodeStatsCallback(BaseCallback):
         """Print per-episode outcome and running success / collision rates."""
 
-        def __init__(self, goal_tolerance_m: float) -> None:
+        def __init__(self, goal_tolerance_m: float, total_timesteps: int) -> None:
             super().__init__()
             self.goal_tolerance_m = goal_tolerance_m
+            self.total_timesteps = total_timesteps
             self.episodes = 0
             self.successes = 0
             self.collisions = 0
+            self.recent = deque(maxlen=100)
+            self.start_wall = time.monotonic()
+            self.start_steps = 0
+
+        def _on_training_start(self) -> None:
+            self.start_wall = time.monotonic()
+            self.start_steps = self.num_timesteps
 
         def _on_step(self) -> bool:
             for done, info in zip(self.locals["dones"], self.locals["infos"]):
@@ -77,39 +94,63 @@ def main() -> None:
                     f"collision_rate={self.collisions / self.episodes:.3f}",
                     flush=True,
                 )
+                self.recent.append(outcome)
+                elapsed = time.monotonic() - self.start_wall
+                rate = (self.num_timesteps - self.start_steps) / elapsed if elapsed > 0 else 0.0
+                remaining = max(self.total_timesteps - self.num_timesteps, 0)
+                n = len(self.recent)
+                print(
+                    f"[TB03_PROGRESS] steps={self.num_timesteps} total={self.total_timesteps} "
+                    f"elapsed_s={elapsed:.0f} steps_per_s={rate:.2f} "
+                    f"eta_s={remaining / rate if rate > 0 else -1:.0f} episode={self.episodes} "
+                    f"last{n}_success={self.recent.count('SUCCESS') / n:.3f} "
+                    f"last{n}_collision={self.recent.count('COLLISION') / n:.3f} "
+                    f"last{n}_timeout={self.recent.count('TIMEOUT') / n:.3f} "
+                    f"outcome={outcome} length={episode.get('l', -1)}",
+                    flush=True,
+                )
             return True
 
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[TB03_PPO_V2] Creating {'GUI' if args.gui else 'headless'} V2 environment", flush=True)
     env = IsaacPointNavLidarEnv(headless=not args.gui, lidar_config=IsaacLidarNavConfig(hide_robot_visuals=True))
     print("[TB03_PPO_V2] Environment ready; constructing PPO", flush=True)
-    stats_callback = EpisodeStatsCallback(env.isaac_config.goal_tolerance_m)
+    stats_callback = EpisodeStatsCallback(env.isaac_config.goal_tolerance_m, args.timesteps)
     try:
         monitored_env = Monitor(env)
-        model = PPO(
-            "MlpPolicy",
-            monitored_env,
-            policy_kwargs={"net_arch": [64, 64]},
-            learning_rate=3e-4,
-            gamma=0.99,
-            gae_lambda=0.95,
-            ent_coef=0.01,
-            n_steps=256,
-            batch_size=64,
-            n_epochs=5,
-            seed=SEED,
-            device="cpu",
-            verbose=1,
-        )
+        if args.resume is not None:
+            model = PPO.load(str(args.resume), env=monitored_env, device="cpu")
+            print(f"[TB03_PPO_V2] resumed {args.resume} at {model.num_timesteps} steps", flush=True)
+        else:
+            model = PPO(
+                "MlpPolicy",
+                monitored_env,
+                policy_kwargs={"net_arch": [64, 64]},
+                learning_rate=3e-4,
+                gamma=0.99,
+                gae_lambda=0.95,
+                ent_coef=0.01,
+                n_steps=256,
+                batch_size=64,
+                n_epochs=5,
+                seed=SEED,
+                device="cpu",
+                verbose=0,
+            )
         checkpoints = CheckpointCallback(
             save_freq=CHECKPOINT_FREQ,
             save_path=str(output_dir),
             name_prefix="checkpoint",
         )
+        remaining = args.timesteps - model.num_timesteps
+        if remaining <= 0:
+            raise ValueError(f"Checkpoint already has {model.num_timesteps} steps >= --timesteps {args.timesteps}")
+        print(f"[TB03_PPO_V2] training {remaining} more steps to reach {args.timesteps}", flush=True)
         model.learn(
-            total_timesteps=args.timesteps,
+            total_timesteps=remaining,
             callback=CallbackList([checkpoints, stats_callback]),
             progress_bar=False,
+            reset_num_timesteps=args.resume is None,
         )
         final_model = output_dir / "final_model"
         model.save(str(final_model))
