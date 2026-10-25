@@ -28,6 +28,8 @@ try:  # Supports both python -m ... and direct execution of this file.
 except ImportError:  # pragma: no cover - direct-script convenience only
     from config import PointNavAction, PointNavConfig
 
+FIRST_ODOM_TIMEOUT_S = 10.0
+
 
 def wrap_to_pi(angle: float) -> float:
     """Return an angle in [-pi, pi]."""
@@ -155,7 +157,27 @@ class RosPointNavEnv(Node):
     def _current_state(self) -> OdomState:
         with self._state_lock:
             sequence = 0 if self._state is None else self._state.sequence
+        # DDS discovery on the Pi can take a few seconds before the first /odom
+        # message arrives; only that first wait gets the longer startup timeout.
+        if sequence == 0:
+            self._wait_for_command_subscriber(FIRST_ODOM_TIMEOUT_S)
+            return self._wait_for_state_after(sequence, FIRST_ODOM_TIMEOUT_S)
         return self._wait_for_state_after(sequence, self.config.stale_odom_timeout_s)
+
+    def _wait_for_command_subscriber(self, timeout_s: float) -> None:
+        """Block until something (the safety filter) subscribes to our command topic.
+
+        An action publishes for well under a second, so commands sent before
+        discovery finishes are silently lost and the robot does not move.
+        """
+        deadline = time.monotonic() + timeout_s
+        while self._cmd_pub.get_subscription_count() == 0:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"Nothing subscribes to {self.config.cmd_vel_topic} after {timeout_s:.0f} s. "
+                    "Is safety_filter_node.py running?"
+                )
+            time.sleep(0.05)
 
     def _publish_twist(self, linear_x: float = 0.0, angular_z: float = 0.0) -> None:
         msg = Twist()
