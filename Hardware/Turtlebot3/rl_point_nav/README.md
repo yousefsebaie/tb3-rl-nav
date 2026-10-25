@@ -58,7 +58,9 @@ scp rl_point_nav/models/isaac_point_nav_lidar_ppo_v2/checkpoint_170000_steps.npz
 | T2 safety filter | `python3 ~/rl_point_nav/safety_filter_node.py` |
 | T3 policy | `cd ~/rl_point_nav`, then the tests below |
 
-Check the LiDAR with `ros2 topic hz /scan`. If nothing is publishing, also run `ros2 launch hls_lfcd_lds_driver hlds_laser.launch.py`.
+Check the LiDAR with `ros2 topic hz /scan` (about 9.4 Hz). Our Burger's LiDAR is labelled LDS-03 but needs `export LDS_MODEL=LDS-02` (set in the Pi's `~/.bashrc`); don't start a second LiDAR driver next to bringup.
+
+Stop `teleop_keyboard` before running the policy: it keeps publishing to `/cmd_vel` and fights the safety filter.
 
 **3. Test in this order.** Goals are relative to the robot: `--goal-x` is metres ahead, `--goal-y` is metres to the left. The trained range is 0.5–2.0 m away, within ±60° of straight ahead.
 ```bash

@@ -1,4 +1,4 @@
-# Project status and next steps (2026-10-24)
+# Project status and next steps (2026-10-25)
 
 For both PCs. Read this first after a break.
 
@@ -28,7 +28,7 @@ Both robots completed a full mission from a curl request: plan → approve → m
 - **`SharedAutonomy/hitl_endpoints.py`:** the sender log path is now relative to the project. The old fixed `/home/g8` path caused HTTP 500 on approve on any other PC.
 - **Missions:** `Plans/final_*_low_level_plan.json` are the real missions. Burger: 2 m forward, turn 180°, return to base. Dog: walk 30 s, turn 180°, walk 30 s back.
 
-### RL on the real Burger (code ready, not yet run on the robot)
+### RL on the real Burger (first runs done 2026-10-25, see "Real-robot RL results" below)
 All of it is in `Hardware/Turtlebot3/rl_point_nav/`; its README has the full run steps.
 - **Model export:** `export_policy_numpy.py` turned the V1B and V2 checkpoints into `.npz` files. They pick the same action as SB3 on 10,000/10,000 test inputs, and the robot needs only NumPy.
 - **Robot environment:** `ros_point_nav_lidar_env.py` reads `/scan` and builds V2's six inputs.
@@ -46,21 +46,39 @@ All of it is in `Hardware/Turtlebot3/rl_point_nav/`; its README has the full run
   - Run against a fake ROS 2 robot: V1B succeeded at 0.6 m and V2 at 1 m to the left.
 
 ## Not done / unknown
-- No RL run on the real Burger yet.
+- V2 obstacle avoidance on the real Burger is not reliable yet (see results below). Needs retraining.
 - No Isaac evaluation numbers for V2 yet.
 - The safety filter blocks forward motion under 0.30 m, but in sim the policy passed about 0.17 m from boxes, so the real robot may stall near obstacles.
 - **API keys must be replaced:** Cohere, SambaNova (LLaMA) and OpenAI. They were exposed in a chat and in the old `ismaileldahshan1/Cyberspace` repo.
 
+## Real-robot RL results (2026-10-25)
+Logs: `Hardware/Turtlebot3/rl_point_nav/results/`. The CSV names start with `20260506`, because the Pi's clock is wrong (it has no internet time), so that date doesn't mean anything.
+
+| Run | Result |
+|---|---|
+| Single actions | TURN ≈ 9–11° (sim 11.5°). FORWARD 0.6–2.1 cm alone, ≈ 2.8 cm inside a run (sim 2.5 cm). |
+| V1B, 1.0 m, clear | SUCCESS ×2 (34–35 steps, ~4.7 cm from goal, straight line). The first run bumped a chair: V1B is blind. |
+| V2, 1.2 m, clear | SUCCESS (51 steps). Always turns left first, then drifts ~20 cm left and curves back. |
+| V2, narrow box centred ahead | Mostly SUCCESS, but the clear-floor route also misses a centred narrow box. |
+| V2, box in its usual path | It turns further left than without the box, so it does react to the LiDAR, but late (~15–20 cm). |
+| V2, black fabric case | COLLISION stop: the LiDAR barely sees matte black, curved objects about as tall as the scan plane. |
+| V2, wide wooden box (~35 cm) | COLLISION stop: it got within ~15 cm, kept choosing FORWARD, and the safety filter blocked it. |
+
+"COLLISION" here means the safety filter and the 0.13 m contact guard stopped the robot, not a hard crash.
+
+What the real robot showed, for retraining:
+- Training only punishes actual contact (−10), so V2 cuts as close as it can. **Penalise getting closer than 0.30 m.**
+- The real LDS-02 drops points (dark or curved objects, anything under ~0.15 m), so `front` jumps between 0.0 and 1.0. **Add LiDAR dropout and noise.**
+- **Train with varied obstacle widths** (12–40 cm), not only 12 cm boxes.
+- V2's habitual first left turn shows up on every run.
+- The safety filter checks ±18°, but the policy's `front` sector is ±30°. Consider matching them.
+
 ## Hardware PC: next steps
-1. Charge the Burger and SSH in with `ssh ubuntu@<IP>`. The ROBOTIS default password is `turtlebot`; find the IP with `arp -a`.
-2. Follow the hardware section of `Hardware/Turtlebot3/rl_point_nav/README.md`:
-   1. dry run
-   2. measure one FORWARD and one TURN
-   3. V1B, no obstacles
-   4. V2, no obstacles
-   5. V2 with one box
-3. Put the run CSVs in `rl_point_nav/results/`, commit and push to `hardware`.
-4. When it works, open a Pull Request from `hardware` into `main`.
+1. Bringup, safety filter and the RL runner all work on the Burger (see the README and the quick reference below). Three SSH windows: bringup, `python3 ~/rl_point_nav/safety_filter_node.py`, RL.
+2. Copy the remaining V2 obstacle-run logs from the Burger (`~/rl_point_nav/logs/`) into `rl_point_nav/results/`. The Mac lost SSH to the Pi near the end; try `sudo iw wlan0 set power_save off` on the Pi.
+3. Repeat obstacle runs about 5–10 times per setup to get success rates.
+4. Test the LLM mission pipeline again on the new IPs (`--server http://192.168.137.40:5001`).
+5. When it works, open a Pull Request from `hardware` into `main`.
 
 ## Simulation PC: next steps
 1. **Get the hardware work.** Review and merge the `hardware` → `main` Pull Request, then run `git switch sim && git pull origin main`. Or merge it directly: `git fetch && git merge origin/hardware`.
@@ -94,14 +112,16 @@ git pull origin main
 
 | Device | IP |
 |---|---|
-| Mac | 192.168.137.126 (check with `ipconfig getifaddr en0`) |
-| Burger | 192.168.137.69 |
+| Mac | 192.168.137.40 (check with `ipconfig getifaddr en0`) |
+| Burger | 192.168.137.173 |
 | PuppyPi | 192.168.137.136 |
 
 - **Mac server:** `cd ~/tb3-rl-nav && source .venv/bin/activate && python3 hitl-comm-server.py`
 - **Burger Pi:**
-  - T1: `export TURTLEBOT3_MODEL=burger && ros2 launch turtlebot3_bringup robot.launch.py`
-  - T2, only if `/scan` is missing: `ros2 launch hls_lfcd_lds_driver hlds_laser.launch.py`
+  - T1: `LDS_MODEL=LDS-02 TURTLEBOT3_MODEL=burger ros2 launch turtlebot3_bringup robot.launch.py`
+    - The LiDAR label says LDS-03, but it sends LDS-02 (LD08) data at 115200 baud. With `LDS-01` `/scan` stays empty; with `LDS-03` the driver logs "Detected lidar stuck". `/scan` should be about 9.4 Hz.
+    - Don't also start `hlds_laser.launch.py`: bringup already starts the LiDAR driver, and two drivers block each other on `/dev/ttyUSB0`.
+    - Stop bringup with Ctrl+C before closing its window, or it keeps running and holds the ports.
   - T3: `source /opt/ros/humble/setup.bash && python3 ~/burger_comm_node.py --server http://<MAC_IP>:5001 --cmd_vel_topic /cmd_vel`
 - **PuppyPi:** `ssh pi@192.168.137.136`, then:
   ```bash
