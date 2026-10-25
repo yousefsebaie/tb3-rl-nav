@@ -65,6 +65,10 @@ INVALID_RANGE_EPSILON_M = 1e-3
 # Validated LiDAR constants (isaac_lidar_*_test.py). Do not change here.
 LIDAR_MOUNT_OFFSET_M = (0.10, 0.0, 0.22)
 LIDAR_NEAR_RANGE_M = 0.10
+# Real-size robot (make_realsize_scene.py): the real Burger base_scan, so the sim
+# LiDAR sits where the hardware LDS does. Chosen at startup from the robot scale.
+REAL_SIZE_LIDAR_MOUNT_OFFSET_M = (-0.032, 0.0, 0.172)
+UNIT_SCALE_TOLERANCE = 0.05
 
 
 
@@ -132,7 +136,7 @@ def _wxyz(quaternion) -> tuple[float, float, float, float]:
     )
 
 
-def _base_rigid_pose(stage, UsdGeom, Gf):
+def _base_rigid_pose(stage, UsdGeom, Gf, mount_offset_m=LIDAR_MOUNT_OFFSET_M):
     """Return scale-free base pose and stage-unit mount offset."""
     base_link = stage.GetPrimAtPath(BASE_LINK_PATH)
     if not base_link.IsValid():
@@ -143,13 +147,13 @@ def _base_rigid_pose(stage, UsdGeom, Gf):
     meters_per_unit = UsdGeom.GetStageMetersPerUnit(stage)
     if meters_per_unit <= 0.0:
         raise RuntimeError(f"Invalid stage meters-per-unit: {meters_per_unit}")
-    offset_stage = Gf.Vec3d(*(component / meters_per_unit for component in LIDAR_MOUNT_OFFSET_M))
+    offset_stage = Gf.Vec3d(*(component / meters_per_unit for component in mount_offset_m))
     return translation, rotation, inherited_scale, offset_stage, meters_per_unit
 
 
-def _synchronize_lidar(lidar, stage, UsdGeom, Gf) -> None:
+def _synchronize_lidar(lidar, stage, UsdGeom, Gf, mount_offset_m=LIDAR_MOUNT_OFFSET_M) -> None:
     """Synchronize top-level LiDAR from rigid base pose (no inherited scale)."""
-    base_translation, base_rotation, _, offset_stage, _ = _base_rigid_pose(stage, UsdGeom, Gf)
+    base_translation, base_rotation, _, offset_stage, _ = _base_rigid_pose(stage, UsdGeom, Gf, mount_offset_m)
     world_offset = Gf.Rotation(base_rotation).TransformDir(offset_stage)
     lidar.set_world_pose(
         position=np.asarray(base_translation + world_offset, dtype=np.float64),
@@ -256,6 +260,7 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         # (path, had_authored_visibility, original_visibility) for every prim hidden at startup.
         self._hidden_visual_records: list[tuple[str, bool, Any]] = []
         self._last_collision = False
+        self.lidar_mount_offset_m = LIDAR_MOUNT_OFFSET_M
 
         super().__init__(
             goal_x,
@@ -362,7 +367,14 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
             self._robot_proxy = proxy
             self._move_robot_proxy(self._state())
 
-        # 2) Validated LiDAR.
+        # 2) Validated LiDAR, mounted for the robot's scale.
+        _, _, robot_scale, _, _, _ = UsdGeom.XformCache().GetLocalToWorldTransform(
+            stage.GetPrimAtPath(ARTICULATION_PATH)
+        ).Factor()
+        if all(abs(float(s) - 1.0) <= UNIT_SCALE_TOLERANCE for s in robot_scale):
+            self.lidar_mount_offset_m = REAL_SIZE_LIDAR_MOUNT_OFFSET_M
+        print(f"[TB03_ENV_V2] robot scale={tuple(round(float(s), 3) for s in robot_scale)} "
+              f"lidar mount={self.lidar_mount_offset_m} m", flush=True)
         self._lidar = LidarRtx(
             prim_path=LIDAR_PATH,
             name="tb03_v2_lidar",
@@ -398,7 +410,7 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
     def _sync_lidar(self) -> None:
         from pxr import Gf, UsdGeom
 
-        _synchronize_lidar(self._lidar, self._stage, UsdGeom, Gf)
+        _synchronize_lidar(self._lidar, self._stage, UsdGeom, Gf, self.lidar_mount_offset_m)
 
     def _wait_for_scan(self) -> None:
         cfg = self.lidar_config

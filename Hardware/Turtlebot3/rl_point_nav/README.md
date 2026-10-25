@@ -28,6 +28,26 @@ cd Hardware/Turtlebot3/rl_point_nav
 ~/isaac-sim/python.sh eval_lidar_vs_nolidar.py --v2-model models/isaac_point_nav_lidar_ppo_v2/checkpoint_170000_steps.zip
 ```
 
+## Real-size scene with a robot-mounted LiDAR (ROS 2 `/tb03/scan`)
+
+`FInalSceneDemo.usd` scales the Burger by about 4.5 × 6.8 × 4.0. A LiDAR placed on that robot (the usual "add a LiDAR to your robot" tutorial) inherits the stretch and sits inside the enlarged LDS housing, so it returns nothing. The scene's existing `ROS2PublishLaserScan` node was also never wired up. `make_realsize_scene.py` writes a **new** scene and leaves the original untouched:
+- the robot at its true size, standing on the floor;
+- the LiDAR as a child of the robot at the real `base_scan` mount (-0.032, 0, 0.172) m, with min range 0.12 m and max range 3.5 m like the LDS-01;
+- a ROS 2 graph publishing `sensor_msgs/LaserScan` on `/tb03/scan` (frame `tb03/base_scan`);
+- stray and duplicate LiDAR prims switched off.
+
+It then plays the scene and checks that the LiDAR returns valid rays. If the sensor is blinded by its own housing, it hides only the LDS mesh and checks again.
+
+```bash
+~/isaac-sim/python.sh make_realsize_scene.py            # -> ~/Desktop/FInalSceneDemo_realsize.usd
+# see it: open the new scene in Isaac Sim, press Play, then in another terminal
+source /opt/ros/humble/setup.bash && ros2 topic hz /tb03/scan     # RViz: LaserScan on /tb03/scan
+# train on it (new model folder; V1B/V2 are not touched)
+TB3_SCENE_USD=~/Desktop/FInalSceneDemo_realsize.usd ~/isaac-sim/python.sh train_isaac_point_nav_lidar_ppo_v2.py \
+    --timesteps 200000 --output-name isaac_point_nav_lidar_ppo_v3_realsize
+```
+In the real-size scene the training LiDAR also sits at the real `base_scan` (chosen automatically from the robot scale), so a policy trained there needs **no** mount correction on hardware. In `lidar_sectors.py`, set `SIM_MOUNT_M = REAL_MOUNT_M` for that policy. Policies trained on the scaled scene (V2) still need the +0.10 m correction.
+
 ## Hardware PC: run the policy on the real Burger
 
 The policy runs **on the Burger's Pi** and needs only ROS 2 Humble and NumPy, with no PyTorch.

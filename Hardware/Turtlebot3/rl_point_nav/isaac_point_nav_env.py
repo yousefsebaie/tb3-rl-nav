@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import os
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -22,7 +23,8 @@ except ImportError:  # pragma: no cover - direct-script convenience only
     from config import PointNavAction, PointNavConfig
 
 
-SCENE_PATH = Path("/home/g8/Desktop/FInalSceneDemo.usd")
+# Override with TB3_SCENE_USD, e.g. the real-size scene from make_realsize_scene.py.
+SCENE_PATH = Path(os.environ.get("TB3_SCENE_USD", "/home/g8/Desktop/FInalSceneDemo.usd"))
 ARTICULATION_PATH = "/World/turtlebot3_burger_02"
 LEFT_WHEEL_DOF = "a__namespace_wheel_left_joint"
 RIGHT_WHEEL_DOF = "a__namespace_wheel_right_joint"

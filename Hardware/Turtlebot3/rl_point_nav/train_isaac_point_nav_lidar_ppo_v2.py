@@ -7,6 +7,8 @@ or written.
 
   --timesteps N   total PPO timesteps (default 100000)
   --gui           train with the Isaac GUI (slower; default headless)
+  --output-name D model folder under models/ (default isaac_point_nav_lidar_ppo_v2);
+                  use a new name when training on another scene (TB3_SCENE_USD)
 """
 
 from __future__ import annotations
@@ -32,7 +34,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--timesteps", type=int, default=DEFAULT_TIMESTEPS)
     parser.add_argument("--gui", action="store_true")
+    parser.add_argument("--output-name", default=OUTPUT_DIR.name)
     args = parser.parse_args()
+    output_dir = MODELS_DIR / args.output_name
 
     try:
         from stable_baselines3 import PPO
@@ -41,7 +45,7 @@ def main() -> None:
     except ImportError as exc:
         raise RuntimeError("Stable-Baselines3 is required for V2 PPO training.") from exc
 
-    if OUTPUT_DIR.resolve() == V1B_DIR.resolve() or V1B_DIR.resolve() in OUTPUT_DIR.resolve().parents:
+    if output_dir.resolve() == V1B_DIR.resolve() or V1B_DIR.resolve() in output_dir.resolve().parents:
         raise RuntimeError("Refusing to write V2 models into the frozen V1B model directory.")
 
     class EpisodeStatsCallback(BaseCallback):
@@ -75,7 +79,7 @@ def main() -> None:
                 )
             return True
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[TB03_PPO_V2] Creating {'GUI' if args.gui else 'headless'} V2 environment", flush=True)
     env = IsaacPointNavLidarEnv(headless=not args.gui, lidar_config=IsaacLidarNavConfig(hide_robot_visuals=True))
     print("[TB03_PPO_V2] Environment ready; constructing PPO", flush=True)
@@ -99,7 +103,7 @@ def main() -> None:
         )
         checkpoints = CheckpointCallback(
             save_freq=CHECKPOINT_FREQ,
-            save_path=str(OUTPUT_DIR),
+            save_path=str(output_dir),
             name_prefix="checkpoint",
         )
         model.learn(
@@ -107,7 +111,7 @@ def main() -> None:
             callback=CallbackList([checkpoints, stats_callback]),
             progress_bar=False,
         )
-        final_model = OUTPUT_DIR / "final_model"
+        final_model = output_dir / "final_model"
         model.save(str(final_model))
         print(
             f"[TB03_PPO_V2] complete: timesteps={args.timesteps} episodes={stats_callback.episodes} "
