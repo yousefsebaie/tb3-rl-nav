@@ -11,6 +11,8 @@ or written.
                   use a new name when training on another scene (TB3_SCENE_USD)
   --profile P     v2 (default) or v3: real-robot lessons (proximity penalty, LiDAR
                   noise/dropout, 12-40 cm obstacles, +/-18 deg front); see v3_lidar_config()
+  --learning-rate / --ent-coef   override PPO's 3e-4 / 0.01 (e.g. lower both to
+                  fine-tune a plateaued run with --resume)
   --resume PATH   continue from a checkpoint .zip; --timesteps is then the TOTAL
                   to reach (steps already in the checkpoint count)
 
@@ -47,6 +49,8 @@ def main() -> None:
     parser.add_argument("--output-name", default=OUTPUT_DIR.name)
     parser.add_argument("--resume", type=Path, default=None)
     parser.add_argument("--profile", choices=("v2", "v3"), default="v2")
+    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--ent-coef", type=float, default=0.01)
     args = parser.parse_args()
     output_dir = MODELS_DIR / args.output_name
 
@@ -127,17 +131,21 @@ def main() -> None:
     try:
         monitored_env = Monitor(env)
         if args.resume is not None:
-            model = PPO.load(str(args.resume), env=monitored_env, device="cpu")
-            print(f"[TB03_PPO_V2] resumed {args.resume} at {model.num_timesteps} steps", flush=True)
+            lr = args.learning_rate
+            model = PPO.load(str(args.resume), env=monitored_env, device="cpu",
+                             custom_objects={"learning_rate": lr, "lr_schedule": lambda _: lr})
+            model.ent_coef = args.ent_coef
+            print(f"[TB03_PPO_V2] resumed {args.resume} at {model.num_timesteps} steps "
+                  f"(learning_rate={lr} ent_coef={args.ent_coef})", flush=True)
         else:
             model = PPO(
                 "MlpPolicy",
                 monitored_env,
                 policy_kwargs={"net_arch": [64, 64]},
-                learning_rate=3e-4,
+                learning_rate=args.learning_rate,
                 gamma=0.99,
                 gae_lambda=0.95,
-                ent_coef=0.01,
+                ent_coef=args.ent_coef,
                 n_steps=256,
                 batch_size=64,
                 n_epochs=5,
