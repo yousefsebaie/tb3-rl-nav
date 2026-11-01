@@ -52,6 +52,13 @@ def Pparser(plan_file: str, target:str, instruction_format:str) -> str:
     # )
     # ---- END COMMENTED OUT: OpenAI API ----
 
+    # Optional: "plan_parser_llm": "cohere" in config.json uses the Cohere key instead.
+    if config.get("plan_parser_llm") == "cohere":
+        from langchain_cohere import ChatCohere
+
+        llm = ChatCohere(model="command-r-plus-08-2024", cohere_api_key=config.get("cohere_api_key", ""), temperature=0.1)
+        return llm.invoke(prompt).content
+
     # ---- ACTIVE: LLaMA via SambaNova (free) ----
     client = openai.OpenAI(
         api_key=LLAMA_API_KEY,

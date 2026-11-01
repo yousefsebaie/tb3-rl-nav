@@ -129,6 +129,11 @@ class IsaacLidarNavConfig:
     lidar_sector_dropout: float = 0.0        # per-step probability a whole sector returns nothing
     lidar_min_valid_m: Optional[float] = None  # rays closer than this return nothing (LDS-02 ~0.15 m)
     ambiguous_close_m: float = 0.25          # hardware empty-sector rule (lidar_sectors.py)
+    # Anti-spin shaping (training only; off by default): turning in place for more than
+    # spin_free_turns actions in a row costs spin_penalty per extra turn; STAY costs stay_penalty.
+    spin_penalty: float = 0.0
+    spin_free_turns: int = 8                 # ~65 deg of turning is free (real avoidance)
+    stay_penalty: float = 0.0
 
     # Hide the scaled robot's non-collision visual geometry (runtime only, never saved).
     hide_robot_visuals: bool = True
@@ -298,6 +303,7 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         self._readings_cache: Optional[tuple[int, dict]] = None
         self._previous_clearance: dict[str, float] = {}
         self._last_proximity_penalty = 0.0
+        self._consecutive_turns = 0
         self._goal_marker = None
         self._robot_proxy = None
         # (path, had_authored_visibility, original_visibility) for every prim hidden at startup.
@@ -928,6 +934,7 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         self._place_obstacles(obstacles)
         self._last_collision = False
         self._last_proximity_penalty = 0.0
+        self._consecutive_turns = 0
         self._previous_clearance = {}
         self._readings_cache = None
         self._set_goal(goal)
@@ -959,6 +966,7 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         self._episode_active = True
         self._last_collision = False
         self._last_proximity_penalty = 0.0
+        self._consecutive_turns = 0
         self._previous_clearance = {}
         self._readings_cache = None
         self.settle_scan(self.lidar_config.reset_scan_frames)
@@ -972,6 +980,15 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         self._last_proximity_penalty = self._proximity_penalty(state)
         reward -= self._last_proximity_penalty
         info["proximity_penalty"] = self._last_proximity_penalty
+        cfg = self.lidar_config
+        turning = PointNavAction(int(action)) in (PointNavAction.TURN_LEFT, PointNavAction.TURN_RIGHT)
+        self._consecutive_turns = self._consecutive_turns + 1 if turning else 0
+        spin_penalty = cfg.spin_penalty if self._consecutive_turns > cfg.spin_free_turns else 0.0
+        if PointNavAction(int(action)) == PointNavAction.STAY:
+            spin_penalty += cfg.stay_penalty
+        reward -= spin_penalty
+        info["spin_penalty"] = spin_penalty
+        info["consecutive_turns"] = self._consecutive_turns
         if not terminated and self._collides(state):
             self._last_collision = True
             reward -= self.lidar_config.collision_penalty

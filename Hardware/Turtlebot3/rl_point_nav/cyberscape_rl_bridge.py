@@ -50,7 +50,10 @@ DEMO_OBSTACLES = ((0.85, 0.62, 0.25), (1.72, 0.0, 0.25), (0.85, -0.62, 0.25))
 ALIGN_ABOVE_DEG = 65.0     # trained goals were within about +-65 deg of the heading
 ALIGN_UNTIL_DEG = 30.0
 ROTATE_TOLERANCE_DEG = 6.0
-STALL_STEPS = 30           # no 3 cm of progress in this many RL steps -> recovery
+STALL_STEPS = 20           # no 3 cm of progress in this many RL steps -> recovery
+SPIN_GUARD_TURNS = 10      # --spin-guard: ~90 deg of turning in a row ...
+SPIN_GUARD_BEARING_DEG = 35.0   # ... while the goal is already ahead ...
+SPIN_GUARD_FRONT_M = 0.50       # ... and the path in front is clear -> drive forward instead
 STALL_PROGRESS_M = 0.03
 RECOVERY_FORWARD_STEPS = 6
 
@@ -72,8 +75,9 @@ def parse_command(line: str):
 
 
 class Bridge:
-    def __init__(self, env: IsaacPointNavLidarEnv, model, max_goal_radius: float, max_leg: float):
-        self.env, self.model = env, model
+    def __init__(self, env: IsaacPointNavLidarEnv, model, max_goal_radius: float, max_leg: float,
+                 spin_guard: bool = False):
+        self.env, self.model, self.spin_guard = env, model, spin_guard
         self.max_goal_radius, self.max_leg = max_goal_radius, max_leg
         state = env._state()
         self.start = (state.x, state.y, state.yaw)
@@ -111,16 +115,25 @@ class Bridge:
             self.turn_until(math.atan2(goal_world[1] - state.y, goal_world[0] - state.x), ALIGN_UNTIL_DEG)
             observation, info = self.env.continue_to_goal(goal_world)
         history = []
+        turns = 0
         while True:
             history.append(info["distance_to_goal_m"])
             if len(history) > STALL_STEPS and history[-STALL_STEPS - 1] - history[-1] < STALL_PROGRESS_M:
-                log("  no progress for 30 RL steps: recovery move, then RL again")
+                log(f"  no progress for {STALL_STEPS} RL steps: recovery move, then RL again")
                 observation, info = self.recover(goal_world, info)
                 if info.get("collision"):
                     return False, "collision during recovery"
                 history = []
                 continue
             action, _ = self.model.predict(observation, deterministic=True)
+            action = PointNavAction(int(action))
+            turning = action in (PointNavAction.TURN_LEFT, PointNavAction.TURN_RIGHT)
+            turns = turns + 1 if turning else 0
+            if (self.spin_guard and turning and turns > SPIN_GUARD_TURNS
+                    and abs(math.degrees(info["relative_goal_bearing_rad"])) < SPIN_GUARD_BEARING_DEG
+                    and info["clearances_m"]["front"] > SPIN_GUARD_FRONT_M):
+                log("  spin guard: goal ahead and path clear, driving forward instead of turning")
+                action, turns = PointNavAction.FORWARD, 0
             observation, _, terminated, truncated, info = self.env.step(int(action))
             c = info["clearances_m"]
             if info["episode_steps"] % 10 == 0:
@@ -243,6 +256,8 @@ def main() -> None:
     parser.add_argument("--max-leg-m", type=float, default=1.9)
     parser.add_argument("--no-obstacles", action="store_true")
     parser.add_argument("--hide-robot", action="store_true")
+    parser.add_argument("--spin-guard", action="store_true",
+                        help="override long in-place turns with FORWARD when the goal is ahead and the path is clear")
     args = parser.parse_args()
 
     from stable_baselines3 import PPO
@@ -255,14 +270,14 @@ def main() -> None:
         env._lidar.enable_visualization()
         model = PPO.load(str(args.model), device="cpu")
         _, info = env.reset(seed=0, options={"goal": (0.0, 0.0), "obstacles": []})
-        bridge = Bridge(env, model, args.max_goal_radius, args.max_leg_m)
+        bridge = Bridge(env, model, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard)
         obstacles = [] if args.no_obstacles else [(*bridge.to_world(x, y), w) for x, y, w in DEMO_OBSTACLES]
         env._place_obstacles(obstacles)
         x0, y0, _ = bridge.start
         env.continue_to_goal((x0, y0))
         frame_camera(bridge)
         log(f"policy {args.model.name}; start pose = mission origin (0, 0), +x ahead, +y left; "
-            f"{len(obstacles)} obstacles placed")
+            f"{len(obstacles)} obstacles placed; spin guard {'ON' if args.spin_guard else 'off'}")
 
         if args.plan is not None:
             commands = plan_commands(args.plan)

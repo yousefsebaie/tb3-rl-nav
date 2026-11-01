@@ -26,6 +26,7 @@ except ImportError:  # pragma: no cover - direct-script convenience only
 HERE = Path(__file__).resolve().parent
 SCENARIO_SEED = 5000
 TAG = "[TB03_EVAL_V3]"
+SPIN_TURNS = 20   # TURN actions in a row (~170 deg) counted as spinning
 
 
 def main() -> None:
@@ -53,10 +54,12 @@ def main() -> None:
             goal, obstacles = info["goal"], len(info["obstacles"])
             widths = info.get("obstacle_sizes_m", [])
             closest = float("inf")
+            longest_spin = 0
             while True:
                 action, _ = model.predict(observation, deterministic=True)
                 observation, _, terminated, truncated, info = env.step(int(action))
                 closest = min(closest, info.get("obstacle_distance_m", float("inf")))
+                longest_spin = max(longest_spin, info.get("consecutive_turns", 0))
                 if terminated or truncated:
                     break
             outcome = "COLLISION" if info["collision"] else ("SUCCESS" if terminated else "TIMEOUT")
@@ -66,6 +69,7 @@ def main() -> None:
                 "goal_x": round(goal["x"], 3), "goal_y": round(goal["y"], 3), "obstacles": obstacles,
                 "max_width_m": round(max(widths), 3) if widths else 0.0,
                 "closest_obstacle_m": round(closest, 3) if closest != float("inf") else "",
+                "longest_turn_run": longest_spin,
             })
             done = len(rows)
             rate = sum(r["outcome"] == "SUCCESS" for r in rows) / done
@@ -88,6 +92,9 @@ def main() -> None:
             print(f"{TAG} RESULT {args.model.name}: success {count('SUCCESS') / n:.1%}  "
                   f"collision {count('COLLISION') / n:.1%}  timeout {count('TIMEOUT') / n:.1%}  (n={n})", flush=True)
             print(f"{TAG} RESULT success with obstacles {share(with_obstacles)}; with a box >= 30 cm {share(wide)}", flush=True)
+            spins = sum(r["longest_turn_run"] >= SPIN_TURNS for r in rows)
+            print(f"{TAG} RESULT spinning (>= {SPIN_TURNS} turns in a row, about a half circle): "
+                  f"{spins / n:.1%} of episodes", flush=True)
             print(f"{TAG} CSV {path}", flush=True)
         env.close()
 

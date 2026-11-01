@@ -11,6 +11,9 @@ or written.
                   use a new name when training on another scene (TB3_SCENE_USD)
   --profile P     v2 (default) or v3: real-robot lessons (proximity penalty, LiDAR
                   noise/dropout, 12-40 cm obstacles, +/-18 deg front); see v3_lidar_config()
+  --anti-spin     reward shaping against turning in place / standing still
+                  (spin_penalty 0.03 per turn after 8 in a row, stay_penalty 0.02);
+                  same observation, so it can fine-tune an existing V3 model
   --learning-rate / --ent-coef   override PPO's 3e-4 / 0.01 (e.g. lower both to
                   fine-tune a plateaued run with --resume)
   --resume PATH   continue from a checkpoint .zip; --timesteps is then the TOTAL
@@ -51,6 +54,7 @@ def main() -> None:
     parser.add_argument("--profile", choices=("v2", "v3"), default="v2")
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--ent-coef", type=float, default=0.01)
+    parser.add_argument("--anti-spin", action="store_true")
     args = parser.parse_args()
     output_dir = MODELS_DIR / args.output_name
 
@@ -120,8 +124,9 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[TB03_PPO_V2] Creating {'GUI' if args.gui else 'headless'} V2 environment", flush=True)
-    lidar_config = (v3_lidar_config(hide_robot_visuals=True) if args.profile == "v3"
-                    else IsaacLidarNavConfig(hide_robot_visuals=True))
+    shaping = dict(spin_penalty=0.03, stay_penalty=0.02) if args.anti_spin else {}
+    lidar_config = (v3_lidar_config(hide_robot_visuals=True, **shaping) if args.profile == "v3"
+                    else IsaacLidarNavConfig(hide_robot_visuals=True, **shaping))
     print(f"[TB03_PPO_V2] profile={args.profile} {lidar_config}", flush=True)
     # The policy only works with the profile it was trained on (sector angles differ).
     (output_dir / "profile.txt").write_text(args.profile + "\n")
