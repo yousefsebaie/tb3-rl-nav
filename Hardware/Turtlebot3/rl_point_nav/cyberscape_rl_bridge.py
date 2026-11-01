@@ -188,6 +188,8 @@ class Bridge:
             self.step(PointNavAction.TURN_LEFT if error > 0 else PointNavAction.TURN_RIGHT)
 
     def drive_leg(self, goal_world: tuple[float, float]) -> tuple[bool, str]:
+        if self.controller.name == "b0":
+            return self.drive_leg_b0(goal_world)
         observation, info = self.env.continue_to_goal(goal_world)
         bearing = info["relative_goal_bearing_rad"]
         if abs(math.degrees(bearing)) > ALIGN_ABOVE_DEG:
@@ -234,6 +236,24 @@ class Bridge:
                 return True, f"reached in {info['episode_steps']} RL steps"
             if truncated:
                 return False, f"timeout, {info['distance_to_goal_m']:.2f} m from the goal"
+
+    def drive_leg_b0(self, goal_world) -> tuple[bool, str]:
+        """Original CyberScape execution (no RL, no goal interface/guards): baseline_b0.py."""
+        try:
+            from .baseline_b0 import B0Driver
+        except ImportError:  # pragma: no cover
+            from baseline_b0 import B0Driver
+        self.env.continue_to_goal(goal_world)
+
+        def on_tick(info):
+            if self.timer is not None:
+                self.timer.record_pose(info["pose"]["x"], info["pose"]["y"])
+
+        driver = B0Driver(self.env, seed=len(self.mission_tasks) * 31 + self.next_task, on_tick=on_tick)
+        status, reason = driver.move_to_point(goal_world)
+        if status == "success":
+            return True, f"reached in {driver.decisions} control periods"
+        return False, f"{status}: {reason}" if reason else status
 
     def recover(self, goal_world, info):
         """Turn toward the goal, or toward the clearer side if the goal side is blocked, and drive a bit."""
@@ -433,8 +453,9 @@ def main() -> None:
                         help="save a PNG of the viewport after setting up the scene, then quit")
     parser.add_argument("--headless", action="store_true",
                         help="no window (batch evaluation with --plan; exits when the plan is done)")
-    parser.add_argument("--controller", choices=("ppo", "rule"), default="ppo",
-                        help="ppo (trained policy) or rule (B1 hand-coded reactive baseline); same safety layer")
+    parser.add_argument("--controller", choices=("ppo", "rule", "b0"), default="ppo",
+                        help="ppo (trained policy), rule (B1 heuristic, same goal interface and safety layer) "
+                             "or b0 (original CyberScape move_to_point, no RL)")
     parser.add_argument("--mission-plan", type=Path, default=None,
                         help="plan JSON the incoming commands come from (to time the mission in watch mode)")
     parser.add_argument("--spin-guard", action="store_true",
@@ -442,9 +463,9 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        from .eval_timing import PpoController, RuleController
+        from .eval_timing import B0Controller, PpoController, RuleController
     except ImportError:  # pragma: no cover
-        from eval_timing import PpoController, RuleController
+        from eval_timing import B0Controller, PpoController, RuleController
 
     # V3 trains with real-sensor noise and dropouts (sim-to-real augmentation); the simulated
     # LiDAR is ideal, so the demo feeds clean readings unless --sensor-noise.
@@ -457,7 +478,7 @@ def main() -> None:
 
             carb.settings.get_settings().set("/app/window/hideUi", True)
             env._lidar.enable_visualization()
-        controller = PpoController(args.model) if args.controller == "ppo" else RuleController()
+        controller = {"ppo": lambda: PpoController(args.model), "rule": RuleController, "b0": B0Controller}[args.controller]()
         _, info = env.reset(seed=0, options={"goal": (0.0, 0.0), "obstacles": []})
         people = SURVIVORS if args.scenario == "disaster" else ()
         timing_meta = {"scenario": args.scenario, "spin_guard": args.spin_guard, "sensor_noise": args.sensor_noise,

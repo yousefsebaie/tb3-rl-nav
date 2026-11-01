@@ -602,6 +602,20 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
             self._readings_cache = (frame, readings)
         return readings
 
+    def raw_sector_clearance(self, name: str = "front", perturb: bool = False) -> float:
+        """Minimum valid range in a sector, like burger_comm_node._sector_min_distance.
+
+        No V3 sector-dropout rule: invalid / missing rays are ignored (inf if none), as in
+        the original non-RL robot node. perturb=True adds the configured range noise and
+        ray dropout (robustness tests).
+        """
+        ranges = self._current_ranges()
+        if perturb:
+            ranges = self._perturb_ranges(ranges)
+        values = ranges[self._sector_masks[name] & ~self._self_mask]
+        values = values[np.isfinite(values)]
+        return float(values.min()) if values.size else math.inf
+
     def _perturb_ranges(self, ranges: np.ndarray) -> np.ndarray:
         """V3 sensor model: noise, per-ray dropout, minimum valid range (no-op for V2)."""
         cfg = self.lidar_config
@@ -951,6 +965,29 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
             flush=True,
         )
         return observation, info
+
+    def drive_command(self, linear_mps: float, angular_radps: float, frames: int) -> dict[str, Any]:
+        """Continuous (v, w) drive for `frames` physics frames (the original non-RL controller).
+
+        Same wheels, physics and episode clock as step(); no settle frames, no reward.
+        Returns the info dict (pose, clearances, collision, ...).
+        """
+        if self._closed:
+            raise RuntimeError("Environment is closed.")
+        wheel_action = self._controller.forward(np.array([linear_mps, angular_radps], dtype=np.float64))
+        for _ in range(frames):
+            self._drive_robot.apply_wheel_actions(wheel_action)
+            self._simulation_context.step(render=not self._headless)
+        self._episode_elapsed_sim_s += frames * self._physics_dt_s
+        state = self._state()
+        self._move_robot_proxy(state)
+        self._readings_cache = None
+        if self._collides(state):
+            self._last_collision = True
+        return self._info(state)
+
+    def stop_robot(self, frames: int = 2) -> None:
+        self._step_frames(frames, count_episode_time=True, hold_stop=True)
 
     def sim_time(self) -> float:
         """Authoritative simulation clock (s), read from Isaac after the physics steps."""
