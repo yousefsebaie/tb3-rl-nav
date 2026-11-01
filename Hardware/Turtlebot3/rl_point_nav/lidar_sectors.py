@@ -10,6 +10,10 @@ distance the policy saw during training (otherwise ~13 cm too far).
 
 Sectors, angles in the (virtual) sensor frame, 0 deg = forward, CCW positive:
     front [-30, 30]   left [30, 120]   right [-120, -30]   (rear rays unused)
+
+V3 models (profile "v3") were trained with the LiDAR at the real mount and a
++/-18 deg front sector, so that profile uses no mount shift and front [-18, 18],
+left [18, 120], right [-120, -18]. See PROFILES.
 clearance = clip(min range / 1.0 m, 0, 1)   (anything beyond 1 m reads 1.0)
 
 Edge cases, matching the simulator's rules as closely as the real sensor allows:
@@ -36,10 +40,20 @@ AMBIGUOUS_CLOSE_M = 0.25
 SECTOR_NAMES = ("front", "left", "right")
 SECTORS_DEG = {"front": (-30.0, 30.0), "left": (30.0, 120.0), "right": (-120.0, -30.0)}
 
+# Per training profile (profile.txt next to the model). V3 trained with the LiDAR
+# at the real mount and a +/-18 deg front sector matching safety_filter_node.py.
+PROFILES = {
+    "v2": {"sim_mount_m": SIM_MOUNT_M, "sectors_deg": SECTORS_DEG},
+    "v3": {
+        "sim_mount_m": REAL_MOUNT_M,
+        "sectors_deg": {"front": (-18.0, 18.0), "left": (18.0, 120.0), "right": (-120.0, -18.0)},
+    },
+}
 
-def _sector_of(angle_deg: float) -> Optional[str]:
+
+def _sector_of(angle_deg: float, sectors_deg: dict = SECTORS_DEG) -> Optional[str]:
     for name in SECTOR_NAMES:
-        lo, hi = SECTORS_DEG[name]
+        lo, hi = sectors_deg[name]
         if lo <= angle_deg <= hi:
             return name
     return None
@@ -56,12 +70,19 @@ def sim_matched_sectors(
     range_min: float,
     range_max: float,
     previous_m: Optional[dict] = None,
+    profile: str = "v2",
 ) -> tuple[list[float], dict]:
     """Return ([front, left, right] normalized to 0..1, diagnostics in meters).
 
-    Also reports ``nearest_body_m``: the closest valid point to the robot centre
-    (base_link) within the forward half, used by the hardware env as a contact guard.
+    ``profile`` selects the training geometry (see PROFILES): virtual sensor mount
+    and sector bounds. Also reports ``nearest_body_m``: the closest valid point to
+    the robot centre (base_link) within the forward half, used by the hardware env
+    as a contact guard.
     """
+    if profile not in PROFILES:
+        raise ValueError(f"unknown LiDAR profile {profile!r}; expected one of {sorted(PROFILES)}")
+    sim_mount_m = PROFILES[profile]["sim_mount_m"]
+    sectors_deg = PROFILES[profile]["sectors_deg"]
     best = {name: math.inf for name in SECTOR_NAMES}
     blocked = {name: False for name in SECTOR_NAMES}
     saw_open = {name: False for name in SECTOR_NAMES}
@@ -70,7 +91,7 @@ def sim_matched_sectors(
 
     for i, r in enumerate(ranges):
         raw_angle = angle_min + i * angle_increment
-        raw_sector = _sector_of(_wrap_deg(math.degrees(raw_angle)))
+        raw_sector = _sector_of(_wrap_deg(math.degrees(raw_angle)), sectors_deg)
         if math.isnan(r):
             continue
         if math.isinf(r) or r > range_max:
@@ -85,9 +106,9 @@ def sim_matched_sectors(
         by = REAL_MOUNT_M[1] + r * math.sin(raw_angle)
         if bx > 0.0:
             nearest_body_m = min(nearest_body_m, math.hypot(bx, by))
-        px, py = bx - SIM_MOUNT_M[0], by - SIM_MOUNT_M[1]
+        px, py = bx - sim_mount_m[0], by - sim_mount_m[1]
         rng = math.hypot(px, py)
-        sector = _sector_of(math.degrees(math.atan2(py, px)))
+        sector = _sector_of(math.degrees(math.atan2(py, px)), sectors_deg)
 
         too_close = rng < SIM_NEAR_RANGE_M or (px <= 0.0 and raw_sector == "front")
         if too_close:

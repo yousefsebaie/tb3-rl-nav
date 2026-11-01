@@ -55,9 +55,11 @@ class RosPointNavLidarEnv(RosPointNavEnv):
     """``use_lidar=False`` -> 3D V1B observation; ``True`` -> 6D V2 observation."""
 
     def __init__(self, goal_x: float, goal_y: float, *, use_lidar: bool,
-                 config: Optional[PointNavConfig] = None, settle_s: float = SETTLE_S) -> None:
+                 config: Optional[PointNavConfig] = None, settle_s: float = SETTLE_S,
+                 lidar_profile: str = "v2") -> None:
         self.use_lidar = use_lidar
         self.settle_s = settle_s
+        self.lidar_profile = lidar_profile
         self._scan_lock = threading.Lock()
         self._scan: Optional[LaserScan] = None
         self._scan_arrival = 0.0
@@ -96,7 +98,7 @@ class RosPointNavLidarEnv(RosPointNavEnv):
             raise RuntimeError(f"No LiDAR scan received on {SCAN_TOPIC} yet.")
         values, diag = sim_matched_sectors(
             scan.ranges, scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max,
-            self._previous_clearance_m,
+            self._previous_clearance_m, profile=self.lidar_profile,
         )
         self._previous_clearance_m = diag["clearance_m"]
         self.last_lidar = diag
