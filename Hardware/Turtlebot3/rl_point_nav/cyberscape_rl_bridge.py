@@ -47,6 +47,12 @@ TAG = "[CYBERSCAPE_RL]"
 # Mission area boxes in the START frame (x ahead, y left, width). They sit between the
 # demo mission's checkpoints so the policy has to steer around them.
 DEMO_OBSTACLES = ((0.85, 0.62, 0.25), (1.72, 0.0, 0.25), (0.85, -0.62, 0.25))
+# --scenario: same proven layout, different story and look.
+#   patrol:   orange boxes, checkpoints A (1.5, 0.75) and B (1.5, -0.75)
+#   disaster: earthquake set dressing (disaster_scene.py): broken concrete blocks, trapped
+#             survivors next to both checkpoints, collapsed ceiling, responder base, dim lights
+SCENARIOS = ("patrol", "disaster")
+SURVIVORS = ((1.5, 0.75), (1.5, -0.75))
 ALIGN_ABOVE_DEG = 65.0     # trained goals were within about +-65 deg of the heading
 ALIGN_UNTIL_DEG = 30.0
 ROTATE_TOLERANCE_DEG = 6.0
@@ -236,10 +242,26 @@ def plan_commands(path: Path) -> list[str]:
     return commands
 
 
-def frame_camera(bridge: Bridge) -> None:
+def dress_scenario(bridge: Bridge, name: str) -> None:
+    """Visual-only props for the scenario (the RL obstacles and goals do not change)."""
+    if name == "disaster":
+        try:
+            from .disaster_scene import build
+        except ImportError:  # pragma: no cover - direct-script convenience only
+            from disaster_scene import build
+        build(bridge.env, bridge.to_world, bridge.start[2], DEMO_OBSTACLES, SURVIVORS)
+
+
+def frame_camera(bridge: Bridge, scenario: str = "patrol") -> None:
     from isaacsim.core.utils.viewports import set_camera_view
 
     z = bridge.env._ground_z
+    if scenario == "disaster":
+        # Lower, from behind the responder base: debris, survivors and collapse in one shot.
+        tx, ty = bridge.to_world(1.5, 0.0)
+        ex, ey = bridge.to_world(-1.0, 1.6)
+        set_camera_view(eye=np.array([ex, ey, z + 1.35]), target=np.array([tx, ty, z]))
+        return
     cx, cy = bridge.to_world(0.8, 0.0)
     target = np.array([cx, cy, z])
     yaw = bridge.start[2]
@@ -256,6 +278,9 @@ def main() -> None:
     parser.add_argument("--max-leg-m", type=float, default=1.9)
     parser.add_argument("--no-obstacles", action="store_true")
     parser.add_argument("--hide-robot", action="store_true")
+    parser.add_argument("--scenario", choices=SCENARIOS, default="patrol")
+    parser.add_argument("--snapshot", type=Path, default=None,
+                        help="save a PNG of the viewport after setting up the scene, then quit")
     parser.add_argument("--spin-guard", action="store_true",
                         help="override long in-place turns with FORWARD when the goal is ahead and the path is clear")
     args = parser.parse_args()
@@ -274,9 +299,18 @@ def main() -> None:
         obstacles = [] if args.no_obstacles else [(*bridge.to_world(x, y), w) for x, y, w in DEMO_OBSTACLES]
         env._place_obstacles(obstacles)
         x0, y0, _ = bridge.start
+        dress_scenario(bridge, args.scenario)
         env.continue_to_goal((x0, y0))
-        frame_camera(bridge)
-        log(f"policy {args.model.name}; start pose = mission origin (0, 0), +x ahead, +y left; "
+        frame_camera(bridge, args.scenario)
+        if args.snapshot is not None:
+            from omni.kit.viewport.utility import capture_viewport_to_file, get_active_viewport
+
+            env.settle_scan(120)
+            capture_viewport_to_file(get_active_viewport(), str(args.snapshot))
+            env.settle_scan(60)
+            log(f"snapshot saved to {args.snapshot}")
+            return
+        log(f"scenario {args.scenario}; policy {args.model.name}; start pose = mission origin (0, 0), +x ahead, +y left; "
             f"{len(obstacles)} obstacles placed; spin guard {'ON' if args.spin_guard else 'off'}")
 
         if args.plan is not None:

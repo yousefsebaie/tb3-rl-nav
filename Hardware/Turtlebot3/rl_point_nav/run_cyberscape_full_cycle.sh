@@ -4,20 +4,28 @@
 #   mission text -> LLM planning (Manager.py: high level, low level, verification, parsing)
 #   -> HITL review: you approve or reject here -> plan sender -> RL policy drives in Isaac Sim
 #
-#   ./run_cyberscape_full_cycle.sh [MISSION_TXT]   (default: mission_files/rl_patrol_mission.txt)
+#   ./run_cyberscape_full_cycle.sh                 patrol: inspect checkpoints A and B
+#   ./run_cyberscape_full_cycle.sh disaster        earthquake search and rescue (debris, 2 survivors)
+#   ./run_cyberscape_full_cycle.sh MISSION_TXT     any mission text (patrol scene)
 #
 # Needs a working cohere_api_key in config.json. Planning takes about 3 minutes.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
-MISSION="$(realpath "${1:-$REPO/mission_files/rl_patrol_mission.txt}")"
+case "${1:-patrol}" in
+    patrol)   MISSION="$REPO/mission_files/rl_patrol_mission.txt";   SCENARIO=patrol ;;
+    disaster) MISSION="$REPO/mission_files/rl_disaster_mission.txt"; SCENARIO=disaster ;;
+    *)        MISSION="$(realpath "$1")";                             SCENARIO=patrol ;;
+esac
+# Passed on to the bridge by run_cyberscape_rl_demo.sh (spin guard on unless BRIDGE_ARGS is set).
+export BRIDGE_ARGS="${BRIDGE_ARGS---spin-guard} --scenario $SCENARIO"
 SERVER="http://localhost:5001"
 SERVER_LOG="$HERE/results/server.log"
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 
-say "Mission"
+say "Mission ($SCENARIO)"
 fold -s -w 100 "$MISSION"; echo
 
 say "Starting Isaac Sim (RL bridge) and the CyberScape server (1-2 min) ..."
@@ -32,11 +40,11 @@ done
 echo "Ready."
 
 say "CyberScape planning with the LLM (high level -> low level -> verification -> parsing, ~3 min) ..."
-python3 - "$MISSION" "$SERVER" <<'EOF'
+python3 - "$MISSION" "$SERVER" "rl_${SCENARIO}_live" <<'EOF'
 import json, sys, urllib.request
 text = open(sys.argv[1]).read()
 request = urllib.request.Request(sys.argv[2] + "/generate_plan", method="POST",
-    data=json.dumps({"mission_title": "rl_patrol_live", "mission_text": text}).encode(),
+    data=json.dumps({"mission_title": sys.argv[3], "mission_text": text}).encode(),
     headers={"Content-Type": "application/json"})
 try:
     with urllib.request.urlopen(request, timeout=1200) as response:
@@ -61,18 +69,21 @@ if [[ ! "$answer" =~ ^[Yy] ]]; then
     echo "Plan rejected. Nothing was executed."
     exit 0
 fi
+SENDER_LOG="$REPO/cyberscape_sender.log"
+sender_start=$(cat "$SENDER_LOG" 2>/dev/null | wc -l)
 curl -s -X POST -H 'Content-Type: application/json' -d '{"comments":"approved in terminal"}' "$SERVER/hitl/approve_plan" >/dev/null
 
 say "Approved. RL policy executing the plan in Isaac Sim:"
 BRIDGE_LOG="$HERE/results/bridge.log"
 shown=$(wc -l < "$BRIDGE_LOG")
-while true; do
+finished=0
+while [ "$finished" -eq 0 ]; do
+    # The plan sender logs "plan finished" after the last command (or when a command fails).
+    tail -n +"$((sender_start + 1))" "$SENDER_LOG" 2>/dev/null | grep -q "plan finished" && finished=1
     total=$(wc -l < "$BRIDGE_LOG")
     if [ "$total" -gt "$shown" ]; then
-        new="$(sed -n "$((shown + 1)),${total}p" "$BRIDGE_LOG" | grep "CYBERSCAPE_RL" || true)"
+        sed -n "$((shown + 1)),${total}p" "$BRIDGE_LOG" | grep "CYBERSCAPE_RL" || true
         shown=$total
-        [ -n "$new" ] && echo "$new"
-        if grep -qE "mission_complete'\): |FAILED" <<< "$new"; then break; fi
     fi
     sleep 2
 done
