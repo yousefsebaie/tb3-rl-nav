@@ -10,6 +10,7 @@
   --auto         run all episodes back to back without waiting for Enter
   --profile P    v2 or v3 settings; default: models/<run>/profile.txt next to --model, else v2
   --seeds S ...  replay these eval_v3.py scenarios (seeds 5000+) instead of the scripted/random ones
+  --no-follow    keep the viewport camera still (by default it follows the robot from close up)
 
 Each step prints the action, pose, goal distance and front/left/right clearances.
 The goal is shown as a green disc on the ground; pooled obstacles are orange boxes.
@@ -45,6 +46,29 @@ VERIFY_SAMPLES = 10
 VERIFY_TOLERANCE = 0.03  # normalized clearance (= 3 cm)
 RENDER_UPDATES_AFTER_RESTORE = 10
 TAG = "[TB03_GUI_V2]"
+FOLLOW_OFFSET_M = (-0.9, -0.9, 0.8)   # camera position relative to the robot (fixed direction, no spinning)
+_follow = True
+
+
+def _follow_robot() -> None:
+    """Point the viewport camera at the robot base from FOLLOW_OFFSET_M."""
+    if not _follow:
+        return
+    import omni.usd
+    from isaacsim.core.utils.viewports import set_camera_view
+    from pxr import UsdGeom
+
+    try:
+        from .isaac_point_nav_lidar_env import BASE_LINK_PATH
+    except ImportError:  # pragma: no cover
+        from isaac_point_nav_lidar_env import BASE_LINK_PATH
+    stage = omni.usd.get_context().get_stage()
+    prim = stage.GetPrimAtPath(BASE_LINK_PATH)
+    if not prim.IsValid():
+        return
+    t = UsdGeom.XformCache().GetLocalToWorldTransform(prim).ExtractTranslation()
+    target = np.array([t[0], t[1], t[2]])
+    set_camera_view(eye=target + np.array(FOLLOW_OFFSET_M), target=target)
 
 # Rule-based controller thresholds (normalized clearance = meters / 1.0 m).
 AVOID_FRONT = 0.35
@@ -114,6 +138,7 @@ def _run_episode(env, policy, label: str, options, seed=None) -> str:
         flush=True,
     )
     _print_lidar(env, info, observation)
+    _follow_robot()
     while True:
         action, _ = policy.predict(observation, deterministic=True)
         observation, reward, terminated, truncated, info = env.step(action)
@@ -126,6 +151,7 @@ def _run_episode(env, policy, label: str, options, seed=None) -> str:
             flush=True,
         )
         _print_lidar(env, info, observation)
+        _follow_robot()
         if terminated or truncated:
             outcome = "COLLISION" if info["collision"] else ("SUCCESS" if terminated else "TIMEOUT")
             print(f"{TAG} {label} {outcome} after {info['episode_steps']} steps", flush=True)
@@ -142,7 +168,10 @@ def main() -> None:
     parser.add_argument("--auto", action="store_true")
     parser.add_argument("--profile", choices=("v2", "v3"), default=None)
     parser.add_argument("--seeds", type=int, nargs="+", default=None)
+    parser.add_argument("--no-follow", action="store_true")
     args = parser.parse_args()
+    global _follow
+    _follow = not args.no_follow
 
     if args.model is not None:
         if not args.model.is_file():
