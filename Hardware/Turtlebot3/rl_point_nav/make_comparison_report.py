@@ -587,7 +587,6 @@ def build_pdf(stamp: str, out_pdf: Path) -> None:
                                   "obstacles 12-40 cm (real-robot lessons)"],
             ["Episode", "start pose fixed, goal 0.5-2 m from a bank of 7, 0-3 obstacles, 250 actions / 120 s max"],
         ], [3.2 * cm, 13.8 * cm]),
-        PageBreak(),
         Paragraph("3. Experimental protocol", h1),
         Paragraph("3.1 Scenarios and conditions", h2),
         Paragraph("A scenario is fully determined by its seed: goal position, number, size and placement of obstacles "
@@ -839,7 +838,7 @@ def build_pdf(stamp: str, out_pdf: Path) -> None:
                 else:
                     cells.append(f"{code.get(r['status'], '?')} ({f(r['termination_elapsed_sim_s'], 0)} s)")
             lines.append([sid, any_row["obstacles"], f(any_row["max_obstacle_width_m"], 2), f(any_row["goal_distance_m"], 2),
-                          f(any_row.get("initial_heading_offset_deg", 0) or 0, 0, "&deg;")] + cells)
+                          f(abs(float(any_row.get("initial_heading_offset_deg") or 0)) * (1 if float(any_row.get("initial_heading_offset_deg") or 0) >= 0.5 else -1 if float(any_row.get("initial_heading_offset_deg") or 0) <= -0.5 else 0), 0, "&deg;")] + cells)
         story += [Paragraph(f"A.{list(data).index(condition) + 1} {condition}", h2),
                   table(lines, [1.8 * cm, 1.2 * cm, 2.1 * cm, 1.7 * cm, 2.2 * cm, 2.7 * cm, 2.7 * cm, 2.6 * cm])]
     story += [
