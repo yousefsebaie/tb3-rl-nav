@@ -10,7 +10,8 @@
   --auto         run all episodes back to back without waiting for Enter
   --profile P    v2 or v3 settings; default: models/<run>/profile.txt next to --model, else v2
   --seeds S ...  replay these eval_v3.py scenarios (seeds 5000+) instead of the scripted/random ones
-  --no-follow    keep the viewport camera still (by default it follows the robot from close up)
+  --camera C     overview (default: whole scenario from above), follow (close chase) or none
+  --keep-panels  keep Isaac Sim's side panels (hidden by default so the viewport fills the window)
 
 Each step prints the action, pose, goal distance and front/left/right clearances.
 The goal is shown as a green disc on the ground; pooled obstacles are orange boxes.
@@ -46,29 +47,53 @@ VERIFY_SAMPLES = 10
 VERIFY_TOLERANCE = 0.03  # normalized clearance (= 3 cm)
 RENDER_UPDATES_AFTER_RESTORE = 10
 TAG = "[TB03_GUI_V2]"
-FOLLOW_OFFSET_M = (-0.9, -0.9, 0.8)   # camera position relative to the robot (fixed direction, no spinning)
-_follow = True
+OVERVIEW_DIRECTION = np.array([-0.45, -0.45, 1.0])   # mostly from above, slightly from the side
+_camera = "overview"
 
 
-def _follow_robot() -> None:
-    """Point the viewport camera at the robot base from FOLLOW_OFFSET_M."""
-    if not _follow:
-        return
+def _robot_base_xyz():
     import omni.usd
-    from isaacsim.core.utils.viewports import set_camera_view
     from pxr import UsdGeom
 
     try:
         from .isaac_point_nav_lidar_env import BASE_LINK_PATH
     except ImportError:  # pragma: no cover
         from isaac_point_nav_lidar_env import BASE_LINK_PATH
-    stage = omni.usd.get_context().get_stage()
-    prim = stage.GetPrimAtPath(BASE_LINK_PATH)
+    prim = omni.usd.get_context().get_stage().GetPrimAtPath(BASE_LINK_PATH)
     if not prim.IsValid():
-        return
+        return None
     t = UsdGeom.XformCache().GetLocalToWorldTransform(prim).ExtractTranslation()
-    target = np.array([t[0], t[1], t[2]])
-    set_camera_view(eye=target + np.array(FOLLOW_OFFSET_M), target=target)
+    return np.array([t[0], t[1], t[2]])
+
+
+def _place_camera(info, start: bool) -> None:
+    """overview: frame robot, goal and obstacles once per episode. follow: chase the robot."""
+    from isaacsim.core.utils.viewports import set_camera_view
+
+    base = _robot_base_xyz()
+    if base is None or _camera == "none":
+        return
+    if _camera == "follow":
+        set_camera_view(eye=base + np.array([-0.9, -0.9, 0.8]), target=base)
+        return
+    if not start:
+        return
+    points = [base[:2], np.array([info["goal"]["x"], info["goal"]["y"]])]
+    points += [np.array(o[:2]) for o in info["obstacles"]]
+    points = np.array(points)
+    center = (points.min(axis=0) + points.max(axis=0)) / 2
+    radius = max(float(np.linalg.norm(points - center, axis=1).max()), 0.5) + 0.3
+    target = np.array([center[0], center[1], base[2]])
+    direction = OVERVIEW_DIRECTION / np.linalg.norm(OVERVIEW_DIRECTION)
+    set_camera_view(eye=target + direction * (2.4 * radius), target=target)
+
+
+def _hide_ui_panels() -> None:
+    """Let the 3D viewport fill the window (same as pressing F7 in Isaac Sim)."""
+    import carb.settings
+
+    carb.settings.get_settings().set("/app/window/hideUi", True)
+
 
 # Rule-based controller thresholds (normalized clearance = meters / 1.0 m).
 AVOID_FRONT = 0.35
@@ -138,7 +163,7 @@ def _run_episode(env, policy, label: str, options, seed=None) -> str:
         flush=True,
     )
     _print_lidar(env, info, observation)
-    _follow_robot()
+    _place_camera(info, start=True)
     while True:
         action, _ = policy.predict(observation, deterministic=True)
         observation, reward, terminated, truncated, info = env.step(action)
@@ -151,7 +176,7 @@ def _run_episode(env, policy, label: str, options, seed=None) -> str:
             flush=True,
         )
         _print_lidar(env, info, observation)
-        _follow_robot()
+        _place_camera(info, start=False)
         if terminated or truncated:
             outcome = "COLLISION" if info["collision"] else ("SUCCESS" if terminated else "TIMEOUT")
             print(f"{TAG} {label} {outcome} after {info['episode_steps']} steps", flush=True)
@@ -168,10 +193,11 @@ def main() -> None:
     parser.add_argument("--auto", action="store_true")
     parser.add_argument("--profile", choices=("v2", "v3"), default=None)
     parser.add_argument("--seeds", type=int, nargs="+", default=None)
-    parser.add_argument("--no-follow", action="store_true")
+    parser.add_argument("--camera", choices=("overview", "follow", "none"), default="overview")
+    parser.add_argument("--keep-panels", action="store_true")
     args = parser.parse_args()
-    global _follow
-    _follow = not args.no_follow
+    global _camera
+    _camera = args.camera
 
     if args.model is not None:
         if not args.model.is_file():
@@ -190,6 +216,8 @@ def main() -> None:
     lidar_config = (v3_lidar_config(hide_robot_visuals=not args.show_robot) if profile == "v3"
                     else IsaacLidarNavConfig(hide_robot_visuals=not args.show_robot))
     env = IsaacPointNavLidarEnv(headless=False, lidar_config=lidar_config)
+    if not args.keep_panels:
+        _hide_ui_panels()
     try:
         if not args.no_lidar_view:
             # Draw what the policy's LiDAR sees (debug point cloud in the viewport).
