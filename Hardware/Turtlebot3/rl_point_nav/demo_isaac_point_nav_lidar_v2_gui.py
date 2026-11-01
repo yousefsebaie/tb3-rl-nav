@@ -9,6 +9,7 @@
   --no-lidar-view  do not draw the LiDAR point cloud in the viewport (drawn by default)
   --auto         run all episodes back to back without waiting for Enter
   --profile P    v2 or v3 settings; default: models/<run>/profile.txt next to --model, else v2
+  --seeds S ...  replay these eval_v3.py scenarios (seeds 5000+) instead of the scripted/random ones
 
 Each step prints the action, pose, goal distance and front/left/right clearances.
 The goal is shown as a green disc on the ground; pooled obstacles are orange boxes.
@@ -102,10 +103,10 @@ def _print_lidar(env, info, observation) -> None:
     print("\n".join(lines), flush=True)
 
 
-def _run_episode(env, policy, label: str, options) -> str:
+def _run_episode(env, policy, label: str, options, seed=None) -> str:
     if hasattr(policy, "reset"):
         policy.reset()
-    observation, info = env.reset(options=options)
+    observation, info = env.reset(seed=seed, options=options)
     print(
         f"{TAG} {label} goal=({info['goal']['x']:.3f}, {info['goal']['y']:.3f}) "
         f"obstacles={[(round(x, 3), round(y, 3)) for x, y in info['obstacles']]} "
@@ -140,6 +141,7 @@ def main() -> None:
     parser.add_argument("--no-lidar-view", action="store_true")
     parser.add_argument("--auto", action="store_true")
     parser.add_argument("--profile", choices=("v2", "v3"), default=None)
+    parser.add_argument("--seeds", type=int, nargs="+", default=None)
     args = parser.parse_args()
 
     if args.model is not None:
@@ -173,10 +175,14 @@ def main() -> None:
             policy = ReactiveController()
             print(f"{TAG} policy=REACTIVE_RULES (no --model given)", flush=True)
 
-        episodes = list(SCRIPTED) + [(f"RANDOM_{i + 1}", None) for i in range(args.random)]
+        if args.seeds:
+            episodes = [(f"SCENARIO_{seed}", None, seed) for seed in args.seeds]
+        else:
+            episodes = [(label, options, None) for label, options in SCRIPTED]
+            episodes += [(f"RANDOM_{i + 1}", None, None) for i in range(args.random)]
         outcomes = []
-        for index, (label, options) in enumerate(episodes):
-            outcomes.append((label, _run_episode(env, policy, label, options)))
+        for index, (label, options, seed) in enumerate(episodes):
+            outcomes.append((label, _run_episode(env, policy, label, options, seed)))
             if index < len(episodes) - 1:
                 if args.auto:
                     env.settle_scan(60)
