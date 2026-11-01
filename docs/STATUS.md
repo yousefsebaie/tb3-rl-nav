@@ -1,4 +1,4 @@
-# Project status and next steps (2026-10-25)
+# Project status and next steps (2026-11-01)
 
 For both PCs. Read this first after a break.
 
@@ -46,7 +46,7 @@ All of it is in `Hardware/Turtlebot3/rl_point_nav/`; its README has the full run
   - Run against a fake ROS 2 robot: V1B succeeded at 0.6 m and V2 at 1 m to the left.
 
 ## Not done / unknown
-- V2 obstacle avoidance on the real Burger is not reliable yet (see results below). Needs retraining.
+- V2/V3 alone do not avoid reliably on the real Burger; with the bridge + route re-planning the patrol mission completes (see "CyberScape → RL on the real Burger").
 - No Isaac evaluation numbers for V2 yet.
 - The safety filter blocks forward motion under 0.30 m, but in sim the policy passed about 0.17 m from boxes, so the real robot may stall near obstacles.
 - **API keys must be replaced:** Cohere, SambaNova (LLaMA) and OpenAI. They were exposed in a chat and in the old `ismaileldahshan1/Cyberspace` repo.
@@ -90,13 +90,34 @@ Changes from V2. They come from the real-robot results above and are all in `v3_
 
 `profile.txt` in each model folder says which settings a model needs. Export to `.npz` with `export_policy_numpy.py`, as before.
 
+## CyberScape → RL on the real Burger (hardware, 2026-11-01)
+**Working:** an LLM-generated CyberScape plan (the sim's patrol mission: A (1.5, 0.75) → scan → B (1.5, −0.75) → scan → rotate 90° → report) ran to the end on the real Burger with the sim demo's 3-box layout.
+
+How it runs (`Hardware/Turtlebot3/rl_point_nav/hardware_rl_bridge.py`, on the Pi):
+- It reuses `cyberscape_rl_bridge.Bridge` from the sim demo unchanged (goal alignment, waypoint legs, stall recovery, spin guard) through a small adapter for the real robot.
+- **Route re-planning (default, hardware only so far):** `route_planner.py` maps every LiDAR scan into a grid; A* plans a route to each checkpoint around everything seen; V3 drives 0.5 m legs along it and the route is re-planned after each leg. In the real run the route changed 1× on the way to A and 3× to B. `--no-replan` gives the sim demo's straight legs.
+- Plans come from the Mac's HITL server (`--server http://<MAC_IP>:5001`, same `/get_instruction` flow as `burger_comm_node.py`) or a plan JSON (`--plan`).
+- `--no-safety-filter` publishes straight to `/cmd_vel` (then stop `safety_filter_node.py`). The real run used it.
+- On the Pi, the Isaac env module is stubbed (no gymnasium there); `Bridge` does not need it.
+
+```bash
+python3 hardware_rl_bridge.py --plan rl_live_burger_plan.json --no-safety-filter     # a plan file
+python3 hardware_rl_bridge.py --server http://192.168.137.171:5001 --no-safety-filter # approved CyberScape plans
+```
+Server on the Mac for the hardware: run it from a copy of the repo with its own `config.json` (`robots_in_curr_mission: ["TURTLEBOT3"]`, `plan_parser_llm: cohere`, `final_low: Plans/rl_live_burger_plan.json`), like `run_cyberscape_rl_demo.sh` does, and set `CYBERSCAPE_ISAAC_SENDER` to a no-op script so approval does not start the Isaac sender. The planner needs `langchain-google-genai` and `python-dotenv` in `.venv`.
+
+**V3 alone on the real robot (no bridge):** clear path 3/3; one box on the direct line 3/3; box in its left-swing path: stuck (it keeps choosing FORWARD; the safety filter holds it); two boxes close together: spins ~3.5 turns, then STAY until timeout. Clear goals beyond ~1.5 m: turns left and then STAYs. The sim demo hides this with the bridge's helpers, which is why the bridge is needed on hardware too.
+
+**For V3 retraining (sim side):** obstacles anywhere, including in the policy's own swing path (not only on the direct line); mirrored episodes against the left-turn habit; a penalty for no progress; goals up to the scene size.
+
+**Battery:** below ~11.1 V the wheel node crashes (`There is no status packet!`, then `stack smashing detected`) and after a restart the motors are off (`torque: false` on `/sensor_state`). Charge first. Turn the motors on with `ros2 service call /motor_power std_srvs/srv/SetBool "{data: true}"`.
+
 ## Hardware PC: next steps
-1. Bringup, safety filter and the RL runner all work on the Burger (see the README and the quick reference below). Three SSH windows: bringup, `python3 ~/rl_point_nav/safety_filter_node.py`, RL.
-2. **First thing next session:** copy `safety_filter_node.py` and `rl_point_nav/ros_point_nav_env.py` to the Burger (`~/rl_point_nav/`). They fix a Ctrl+C bug: the final zero command failed (`publisher's context is invalid`) and the safety filter kept re-sending the last FORWARD. The filter now sends zero if no `/cmd_vel_raw` arrives for 0.5 s. Not yet tested on the robot: check that Ctrl+C mid-run stops it. Until then, also Ctrl+C the safety filter to stop.
-3. Copy the remaining V2 obstacle-run logs from the Burger (`~/rl_point_nav/logs/`) into `rl_point_nav/results/`. The Mac lost SSH to the Pi near the end; try `sudo iw wlan0 set power_save off` on the Pi.
-4. Repeat obstacle runs about 5–10 times per setup to get success rates.
-5. Test the LLM mission pipeline again on the new IPs (`--server http://192.168.137.40:5001`).
-6. When it works, open a Pull Request from `hardware` into `main`.
+1. Charge the Burger. Three SSH windows: bringup; safety filter (or stop it for `--no-safety-filter`); RL. Check `torque: true` before driving.
+2. Run the full cycle in server mode: LLM plans → approve → `hardware_rl_bridge.py --server ...` drives.
+3. Repeat the mission with different box layouts; save the window output (the bridge log only goes to the screen).
+4. Optional: write the bridge log and the map/route to a file per mission, for the report.
+5. When it works, open a Pull Request from `hardware` into `main`.
 
 ## Simulation PC: next steps
 1. **Get the hardware work.** Review and merge the `hardware` → `main` Pull Request, then run `git switch sim && git pull origin main`. Or merge it directly: `git fetch && git merge origin/hardware`.
@@ -130,8 +151,8 @@ git pull origin main
 
 | Device | IP |
 |---|---|
-| Mac | 192.168.137.40 (check with `ipconfig getifaddr en0`) |
-| Burger | 192.168.137.173 |
+| Mac | 192.168.137.171 (check with `ipconfig getifaddr en0`) |
+| Burger | 192.168.137.146 (find it in the hotspot device list) |
 | PuppyPi | 192.168.137.136 |
 
 - **Mac server:** `cd ~/tb3-rl-nav && source .venv/bin/activate && python3 hitl-comm-server.py`
