@@ -464,7 +464,19 @@ def build_pdf(stamp: str, out_pdf: Path) -> None:
         Paragraph("CyberScape mission execution without RL (original controller) vs. heuristic baseline vs. PPO", h2),
         Paragraph(f"TurtleBot3 Burger &middot; Isaac Sim 5.1 real-size scene &middot; generated {dt.date.today():%d %B %Y} "
                   f"&middot; run <font face='Courier'>{stamp}</font> &middot; AUC Graduation Project, Thesis II", small),
-        Spacer(1, 10),
+        Spacer(1, 6),
+    ]
+    planned = sum(len(m["scenarios"]) * len(m["controllers"]) for m in manifests.values())
+    done = sum(len(r) for r in data.values())
+    if done < planned:
+        warn = ParagraphStyle("warn", parent=body, textColor=colors.HexColor("#b3261e"), fontSize=10, leading=13)
+        story += [Paragraph(f"<b>PRELIMINARY</b> &mdash; generated while the experiment was still running: {done} of "
+                            f"{planned} planned episodes completed (" + ", ".join(
+                                f"{c} {len(data[c]) // len(CONTROLLERS)}/{len(manifests[c]['scenarios'])} scenarios"
+                                for c in data if c in manifests) + "). Numbers will change; do not cite them as final.",
+                            warn)]
+    story += [
+        Spacer(1, 4),
         Paragraph("Executive summary", h1),
         Paragraph("This report compares three ways of executing the movement commands of an approved CyberScape (LLM) "
                   "mission plan on a simulated TurtleBot3: <b>B0</b>, the execution controller the system used before "
