@@ -232,7 +232,7 @@ def _lighting(b: _Builder) -> None:
             light = UsdLux.LightAPI(prim)
             value = light.GetIntensityAttr().Get()
             if value:
-                light.GetIntensityAttr().Set(value * 0.12)
+                light.GetIntensityAttr().Set(value * 0.35)
     b.light("flood", -0.9, 0.0, 1.35, (0.85, 0.92, 1.0), 9.0e4, 0.06)
     b.light("beacon", -0.9, 0.6, 0.95, (1.0, 0.05, 0.02), 3.0e4, 0.03)
     b.light("fire", 3.0, 0.1, 0.25, (1.0, 0.45, 0.12), 6.0e4, 0.15)
