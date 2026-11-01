@@ -945,6 +945,26 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         )
         return observation, info
 
+    def continue_to_goal(self, goal: Sequence[float]) -> tuple[np.ndarray, dict[str, Any]]:
+        """Mission mode: new goal from the robot's CURRENT pose (no teleport, obstacles stay).
+
+        Starts a fresh step/time budget like reset(); used by cyberscape_rl_bridge.py.
+        """
+        if self._closed:
+            raise RuntimeError("Environment is closed.")
+        self._set_goal(goal)
+        self._move_goal_marker()
+        self._episode_steps = 0
+        self._episode_elapsed_sim_s = 0.0
+        self._episode_active = True
+        self._last_collision = False
+        self._last_proximity_penalty = 0.0
+        self._previous_clearance = {}
+        self._readings_cache = None
+        self.settle_scan(self.lidar_config.reset_scan_frames)
+        state = self._state()
+        return self._observation(state), self._info(state)
+
     def step(self, action: PointNavAction | int) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         observation, reward, terminated, truncated, info = super().step(action)
         state = self._state()

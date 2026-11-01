@@ -1,0 +1,36 @@
+{
+    "target": "TURTLEBOT3",
+    "phases": [
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 1,
+            "state": "Burger at base (0, 0), ready to move.",
+            "phase_target": "Inspect checkpoint A at (1.5, 0.75), avoiding obstacles.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((1.5, 0.75))\nTurtleBot3.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 2,
+            "state": "Burger at checkpoint A.",
+            "phase_target": "Inspect checkpoint B at (1.5, -0.75), avoiding obstacles.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((1.5, -0.75))\nTurtleBot3.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 3,
+            "state": "Burger at checkpoint B.",
+            "phase_target": "Turn to face the room and report mission complete.",
+            "inputs": [],
+            "outputs": {
+                "mission_status": {
+                    "type": "string"
+                }
+            },
+            "low_level_plan": "TurtleBot3.rotate(90)\nTurtleBot3.communicate_with_apm('mission_complete')"
+        }
+    ]
+}
