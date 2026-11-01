@@ -71,9 +71,13 @@ def send_command(command):
 def wait_until_done(command):
     start_time = time.time()
     while True:
-        if read_status() == "DONE":
+        status = read_status()
+        if status == "DONE":
             print("Isaac completed:", command, flush=True)
             return True
+        if status.startswith("FAILED"):
+            print("Isaac failed:", command, "-", status, flush=True)
+            return False
 
         if time.time() - start_time > TIMEOUT_SECONDS:
             print("Isaac timeout waiting for:", command, flush=True)

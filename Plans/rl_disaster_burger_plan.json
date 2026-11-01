@@ -1,0 +1,36 @@
+{
+    "target": "TURTLEBOT3",
+    "phases": [
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 1,
+            "state": "Burger at base (0, 0). Debris on the floor.",
+            "phase_target": "Reach survivor 1 at (1.5, 0.75), confirm and report.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((1.5, 0.75))\nTurtleBot3.scan_with_lidar()\nTurtleBot3.detect_with_camera('survivor')\nTurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 2,
+            "state": "Burger at survivor 1.",
+            "phase_target": "Reach survivor 2 at (1.5, -0.75), confirm and report.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((1.5, -0.75))\nTurtleBot3.scan_with_lidar()\nTurtleBot3.detect_with_camera('survivor')\nTurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 3,
+            "state": "Both survivors located.",
+            "phase_target": "Face the room and report search complete.",
+            "inputs": [],
+            "outputs": {
+                "mission_status": {
+                    "type": "string"
+                }
+            },
+            "low_level_plan": "TurtleBot3.rotate(90)\nTurtleBot3.communicate_with_apm('search complete, 2 survivors located')"
+        }
+    ]
+}
