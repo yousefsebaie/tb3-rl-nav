@@ -23,6 +23,7 @@ and legs default to 1.4 m because V3 stalls on clear goals beyond ~1.5 m on this
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import math
 from pathlib import Path
 import sys
@@ -44,9 +45,10 @@ except ImportError:
     sys.modules["isaac_point_nav_lidar_env"] = _stub
 
 from burger_comm_node import complete_phase, get_instruction, report_error, send_heartbeat  # noqa: E402
-from cyberscape_rl_bridge import Bridge, log, plan_commands  # noqa: E402
+from cyberscape_rl_bridge import ALIGN_ABOVE_DEG, ALIGN_UNTIL_DEG, Bridge, log, plan_commands  # noqa: E402
 from policy_numpy import NumpyPolicy  # noqa: E402
-from ros_point_nav_lidar_env import RosPointNavLidarEnv  # noqa: E402
+from route_planner import RoutePlanner, lookahead, route_length  # noqa: E402
+from ros_point_nav_lidar_env import RosPointNavLidarEnv, v2_config  # noqa: E402
 
 DEFAULT_MODEL = HERE / "models" / "v3" / "checkpoint_1000000_steps.npz"
 HEARTBEAT_PERIOD_S = 5.0
@@ -102,6 +104,110 @@ class HardwareMissionEnv:
     def sim_time(self) -> float:
         return time.monotonic()
 
+    def scan_and_pose(self):
+        """Newest LaserScan and the robot pose (x, y, yaw) for the route planner's map."""
+        with self.ros._scan_lock:
+            scan = self.ros._scan
+        state = self.ros._current_state()
+        return scan, (state.x, state.y, state.yaw)
+
+
+class PlanningBridge(Bridge):
+    """Bridge whose moves follow an A* route around the obstacles seen so far.
+
+    Every action adds the newest scan to the map. A move re-plans the route to its
+    target after each short leg (LEG_M along the route), so the route bends around an
+    obstacle as soon as the LiDAR sees it. The policy drives each leg; everything else
+    (rotate, scan, detect, waiting) is the unchanged simulation Bridge.
+    """
+
+    LEG_M = 0.5               # policy goal: this far along the route (V3 drives straight here)
+    LEG_STEPS = 25            # policy actions per leg before re-planning anyway
+    WAYPOINT_REACHED_M = 0.12
+    ARRIVED_M = 0.08
+    MAX_LEGS = 60
+    ROUTE_CHANGED_M = 0.15    # new route this much longer/shorter than the old one's rest -> report it
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.planner = RoutePlanner(self.start[:2])
+        self.route_changes = 0
+        self.update_map()
+
+    def update_map(self) -> None:
+        scan, pose = self.env.scan_and_pose()
+        if scan is not None:
+            self.planner.add_scan(pose, scan.ranges, scan.angle_min, scan.angle_increment,
+                                  scan.range_min, scan.range_max)
+
+    def _step(self, action):
+        result = super()._step(action)
+        self.update_map()
+        return result
+
+    def move_to(self, x: float, y: float) -> tuple[bool, str]:
+        radius = math.hypot(x, y)
+        if radius > self.max_goal_radius:
+            scale = self.max_goal_radius / radius
+            log(f"  ({x:.2f}, {y:.2f}) is {radius:.2f} m from the start; clamped to {self.max_goal_radius:.2f} m")
+            x, y = x * scale, y * scale
+        target = self.to_world(x, y)
+        previous = None   # (route length, robot position) of the last plan
+        changes_before = self.route_changes
+        best, legs_without_progress = math.inf, 0
+        for _ in range(self.MAX_LEGS):
+            state = self.env._state()
+            remaining = math.hypot(target[0] - state.x, target[1] - state.y)
+            if remaining <= self.ARRIVED_M:
+                return True, f"arrived ({self.route_changes - changes_before} route changes)"
+            route = self.planner.plan((state.x, state.y), target)
+            if route is None:
+                return False, "no route to the target: blocked on every side"
+            length = route_length(route)
+            if previous is None:
+                log(f"  route to ({x:.2f}, {y:.2f}): {length:.2f} m")
+            else:
+                # Following the old route would leave (old length - distance driven) to go.
+                expected = previous[0] - math.dist(previous[1], (state.x, state.y))
+                if abs(length - expected) > self.ROUTE_CHANGED_M:
+                    self.route_changes += 1
+                    self.count("route_change")
+                    log(f"  obstacle seen: route changed, now {length:.2f} m to ({x:.2f}, {y:.2f})")
+            previous = (length, (state.x, state.y))
+            final = length <= self.LEG_M
+            ok, why = self.drive_short_leg(target if final else lookahead(route, self.LEG_M), final)
+            if not ok:
+                return False, why
+            if remaining < best - 0.03:
+                best, legs_without_progress = remaining, 0
+            else:
+                legs_without_progress += 1
+                if legs_without_progress >= 4:
+                    log("  no progress for 4 legs: recovery move, then re-plan")
+                    self.count("stall_recovery")
+                    self.recover(target, {})
+                    legs_without_progress = 0
+        return False, f"gave up after {self.MAX_LEGS} legs"
+
+    def drive_short_leg(self, goal_world: tuple[float, float], final: bool) -> tuple[bool, str]:
+        observation, info = self.env.continue_to_goal(goal_world)
+        bearing = info["relative_goal_bearing_rad"]
+        if abs(math.degrees(bearing)) > ALIGN_ABOVE_DEG:
+            self.count("goal_alignment")
+            state = self.env._state()
+            self.turn_until(math.atan2(goal_world[1] - state.y, goal_world[0] - state.x), ALIGN_UNTIL_DEG)
+            observation, info = self.env.continue_to_goal(goal_world)
+        for _ in range(self.LEG_STEPS):
+            observation, _, terminated, _, info = self.step(self.decide(observation))
+            if info["collision"]:
+                log("  contact guard: obstacle within 13 cm, turning away and re-planning")
+                self.count("contact_recovery")
+                self.recover(goal_world, info)
+                return True, "contact"
+            if terminated or (not final and info["distance_to_goal_m"] <= self.WAYPOINT_REACHED_M):
+                break
+        return True, "leg done"
+
 
 def run_server(bridge: Bridge, server_url: str, robot_name: str) -> None:
     """burger_comm_node.run_mission, with each instruction executed by the Bridge."""
@@ -153,6 +259,11 @@ def main() -> None:
     parser.add_argument("--max-leg-m", type=float, default=1.4)
     parser.add_argument("--no-spin-guard", action="store_true",
                         help="pure RL legs (the simulation demo runs with the spin guard on)")
+    parser.add_argument("--no-replan", action="store_true",
+                        help="drive straight legs like the simulation demo instead of A* routes")
+    parser.add_argument("--no-safety-filter", action="store_true",
+                        help="publish straight to /cmd_vel; stop safety_filter_node.py first, "
+                             "or its zero commands fight these")
     args = parser.parse_args()
 
     profile = args.profile
@@ -164,14 +275,19 @@ def main() -> None:
     controller = NumpyController(args.model)
     if controller.policy.obs_dim != 6:
         raise SystemExit("The bridge needs a LiDAR policy (6 inputs), e.g. V3.")
-    ros_env = RosPointNavLidarEnv(0.0, 0.0, use_lidar=True, lidar_profile=profile)
+    config = v2_config()
+    if args.no_safety_filter:
+        config = dataclasses.replace(config, cmd_vel_topic="/cmd_vel")
+    ros_env = RosPointNavLidarEnv(0.0, 0.0, use_lidar=True, config=config, lidar_profile=profile)
     try:
         env = HardwareMissionEnv(ros_env)
-        bridge = Bridge(env, controller, args.max_goal_radius, args.max_leg_m,
-                        spin_guard=not args.no_spin_guard)
+        bridge_class = Bridge if args.no_replan else PlanningBridge
+        bridge = bridge_class(env, controller, args.max_goal_radius, args.max_leg_m,
+                              spin_guard=not args.no_spin_guard)
         log(f"model {args.model.name} ({profile} sectors); start pose = mission origin (0, 0), "
             f"+x ahead, +y left; legs <= {args.max_leg_m} m; "
-            f"spin guard {'off' if args.no_spin_guard else 'ON'}")
+            f"spin guard {'off' if args.no_spin_guard else 'ON'}; "
+            f"route re-planning {'off' if args.no_replan else 'ON'}; commands to {config.cmd_vel_topic}")
         if args.plan is not None:
             commands = plan_commands(args.plan)
             log(f"running {len(commands)} commands from {args.plan}")
