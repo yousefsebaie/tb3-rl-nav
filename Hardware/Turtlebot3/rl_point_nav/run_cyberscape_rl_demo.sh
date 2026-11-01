@@ -26,6 +26,7 @@ else
     PLAN="$(realpath "${1:-$REPO/Plans/rl_demo_burger_plan.json}")"
 fi
 mkdir -p "$DEMO_DIR" "$HERE/results"
+case "$PLAN" in /*) PLAN_ABS="$PLAN" ;; *) PLAN_ABS="$REPO/$PLAN" ;; esac   # timed by the bridge
 for entry in "$REPO"/* "$REPO"/.[!.]*; do
     name="$(basename "$entry")"
     [ "$name" = config.json ] || [ "$name" = .git ] || ln -sfn "$entry" "$DEMO_DIR/$name"
@@ -49,7 +50,7 @@ sleep 2
 rm -f "$HERE/results/bridge.log"
 echo "Starting Isaac Sim + RL bridge (window opens in 1-2 min) ..."
 (cd "$HERE" && TB3_SCENE_USD="${TB3_SCENE_USD:-$HOME/Desktop/FInalSceneDemo_realsize.usd}" \
-    setsid nohup ./isaac_run.sh cyberscape_rl_bridge.py $BRIDGE_ARGS > results/bridge.log 2>&1 < /dev/null &)
+    setsid nohup ./isaac_run.sh cyberscape_rl_bridge.py $BRIDGE_ARGS --mission-plan "$PLAN_ABS" > results/bridge.log 2>&1 < /dev/null &)
 echo "Waiting for the bridge to be ready ..."
 until grep -q "waiting for CyberScape commands" "$HERE/results/bridge.log" 2>/dev/null; do
     if grep -q Traceback "$HERE/results/bridge.log" 2>/dev/null; then

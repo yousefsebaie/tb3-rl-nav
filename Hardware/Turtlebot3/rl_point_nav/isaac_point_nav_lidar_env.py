@@ -952,6 +952,14 @@ class IsaacPointNavLidarEnv(IsaacPointNavEnv):
         )
         return observation, info
 
+    def sim_time(self) -> float:
+        """Authoritative simulation clock (s), read from Isaac after the physics steps."""
+        return float(self._simulation_context.current_time)
+
+    def physics_frames(self) -> int:
+        """Physics steps taken so far (for reconciling sim_time with frames x physics dt)."""
+        return int(self._simulation_context.frames)
+
     def continue_to_goal(self, goal: Sequence[float]) -> tuple[np.ndarray, dict[str, Any]]:
         """Mission mode: new goal from the robot's CURRENT pose (no teleport, obstacles stay).
 

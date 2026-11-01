@@ -16,3 +16,4 @@ __pycache__/
 Hardware/Turtlebot3/rl_point_nav/logs/
 Plans/rl_live_burger_plan.json
 mission_files/rl_*_live.txt
+Hardware/Turtlebot3/rl_point_nav/results/timing/smoke/

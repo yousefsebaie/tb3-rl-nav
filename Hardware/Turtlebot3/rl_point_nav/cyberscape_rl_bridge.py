@@ -28,20 +28,24 @@ import os
 from pathlib import Path
 import re
 import time
+from typing import Optional
 
 import numpy as np
 
 try:
     from .config import PointNavAction
     from .isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, v3_lidar_config
+    from .mission_timing import MissionTimer, append_csv
 except ImportError:  # pragma: no cover - direct-script convenience only
     from config import PointNavAction
     from isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, v3_lidar_config
+    from mission_timing import MissionTimer, append_csv
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_MODEL = HERE / "models" / "isaac_point_nav_lidar_ppo_v3" / "checkpoint_1000000_steps.zip"
 COMMAND_FILE = Path(os.environ.get("CYBERSCAPE_ISAAC_COMMAND_FILE", "/home/g8/cyberscape_command.txt"))
 STATUS_FILE = Path(os.environ.get("CYBERSCAPE_ISAAC_STATUS_FILE", "/home/g8/cyberscape_status.txt"))
+MISSIONS_DIR = HERE / "results" / "missions"      # Mission Timing Evaluator output
 TAG = "[CYBERSCAPE_RL]"
 
 # Mission area boxes in the START frame (x ahead, y left, width). They sit between the
@@ -91,9 +95,13 @@ def parse_command(line: str):
 
 
 class Bridge:
-    def __init__(self, env: IsaacPointNavLidarEnv, model, max_goal_radius: float, max_leg: float,
-                 spin_guard: bool = False, people=()):
-        self.env, self.model, self.spin_guard = env, model, spin_guard
+    def __init__(self, env: IsaacPointNavLidarEnv, controller, max_goal_radius: float, max_leg: float,
+                 spin_guard: bool = False, people=(), timing_meta: Optional[dict] = None):
+        self.env, self.controller, self.spin_guard = env, controller, spin_guard
+        self.timer: Optional[MissionTimer] = None
+        self.mission_tasks: list[str] = []
+        self.next_task = 0
+        self.timing_meta = timing_meta or {}
         state = env._state()
         self.start = (state.x, state.y, state.yaw)
         self.people = [(x, y) for x, y, _ in people]   # chest (x, y), start frame: what the camera finds
@@ -143,10 +151,27 @@ class Bridge:
                 action = PointNavAction.TURN_LEFT if left >= right else PointNavAction.TURN_RIGHT
                 if not self.safety_active:
                     log(f"  person safety: {max(now, 0.0):.2f} m from a survivor, turning away instead of driving forward")
+                self.count("person_safety_override")
                 self.safety_active = True
-                return self.env.step(int(action))
+                return self._step(action)
         self.safety_active = False
-        return self.env.step(int(action))
+        return self._step(action)
+
+    def _step(self, action):
+        result = self.env.step(int(action))
+        if self.timer is not None:
+            self.timer.record_pose(result[4]["pose"]["x"], result[4]["pose"]["y"])
+        return result
+
+    def count(self, name: str) -> None:
+        if self.timer is not None:
+            self.timer.count(name)
+
+    def decide(self, observation) -> PointNavAction:
+        """Controller decision, timed on the decision clock when a mission is being timed."""
+        if self.timer is not None:
+            return PointNavAction(self.timer.time_inference(self.controller.act, observation))
+        return PointNavAction(self.controller.act(observation))
 
     def pose(self):
         state = self.env._state()
@@ -168,6 +193,7 @@ class Bridge:
         if abs(math.degrees(bearing)) > ALIGN_ABOVE_DEG:
             state = self.env._state()
             log(f"  goal is {math.degrees(bearing):+.0f} deg off the heading: turning toward it first")
+            self.count("goal_alignment")
             self.turn_until(math.atan2(goal_world[1] - state.y, goal_world[0] - state.x), ALIGN_UNTIL_DEG)
             observation, info = self.env.continue_to_goal(goal_world)
         history = []
@@ -176,24 +202,26 @@ class Bridge:
             history.append(info["distance_to_goal_m"])
             if len(history) > STALL_STEPS and history[-STALL_STEPS - 1] - history[-1] < STALL_PROGRESS_M:
                 log(f"  no progress for {STALL_STEPS} RL steps: recovery move, then RL again")
+                self.count("stall_recovery")
                 observation, info = self.recover(goal_world, info)
                 if info.get("collision"):
                     return False, "collision during recovery"
                 history = []
                 continue
-            action, _ = self.model.predict(observation, deterministic=True)
-            action = PointNavAction(int(action))
+            action = self.decide(observation)
             turning = action in (PointNavAction.TURN_LEFT, PointNavAction.TURN_RIGHT)
             turns = turns + 1 if turning else 0
             if self.spin_guard and turning and turns > SPIN_GUARD_TURNS:
                 bearing = info["relative_goal_bearing_rad"]
                 if abs(math.degrees(bearing)) < SPIN_GUARD_BEARING_DEG and info["clearances_m"]["front"] > SPIN_GUARD_FRONT_M:
                     log("  spin guard: goal ahead and path clear, driving forward instead of turning")
+                    self.count("spin_guard_override")
                     action, turns = PointNavAction.FORWARD, 0
                 else:
                     toward = PointNavAction.TURN_LEFT if bearing > 0 else PointNavAction.TURN_RIGHT
                     if action != toward:
                         log("  spin guard: turning the short way back toward the goal")
+                        self.count("spin_guard_override")
                     action = toward
             observation, _, terminated, truncated, info = self.step(action)
             c = info["clearances_m"]
@@ -296,16 +324,59 @@ class Bridge:
             return True, "simulated"
         return True, "not supported in simulation, skipped"
 
+    # ------------------------------------------------------- mission timing
+    def begin_mission(self, commands: list[str], mission_id: str) -> None:
+        """Mission Timing Evaluator: one task per plan command, t0 = now (first command)."""
+        self.mission_tasks = [f"t{i:02d} {c}" for i, c in enumerate(commands)]
+        self.next_task = 0
+        self.timer = MissionTimer(mission_id, self.controller.name, self.env.sim_time, self.mission_tasks,
+                                  metadata=dict(self.timing_meta))
+        self.timer.start()
+        _, cx, cy = self.pose()
+        self.timer.record_pose(*self.to_world(cx, cy))
+        log(f"timing mission {mission_id}: {len(commands)} tasks, controller {self.controller.name}")
+
+    def end_mission(self, status: str, reason: str = "") -> None:
+        if self.timer is None:
+            return
+        if status == "success":
+            self.timer.robot_complete("turtlebot3")
+        row = self.timer.finish(status, reason)
+        folder = MISSIONS_DIR / self.timer.mission_id
+        self.timer.write_events(folder / "events.jsonl")
+        append_csv(MISSIONS_DIR / "missions.csv", row)
+        log(f"MISSION {row['status']}: makespan {row['makespan_sim_s']} s sim "
+            f"(terminated at {row['termination_elapsed_sim_s']} s), wall {row['wall_elapsed_s']} s, RTF {row['rtf']}, "
+            f"path {row['path_length_m']} m, inference p95 {row['inference_p95_ms']} ms -> {folder}")
+        self.timer = None
+
     def run(self, line: str) -> bool:
         _, cx, cy = self.pose()
         log(f"COMMAND {line.strip()}   (robot at ({cx:.2f}, {cy:.2f}) in the start frame)")
         write_status("BUSY")
+        task = None
+        if self.timer is not None and self.next_task < len(self.mission_tasks):
+            task = self.mission_tasks[self.next_task]
+            if task.split(" ", 1)[1] != line.strip():
+                log(f"  timing: command differs from plan task {task!r}; not timed")
+                task = None
+            else:
+                self.next_task += 1
+                self.timer.task_start(task, "turtlebot3")
         try:
             ok, why = self.execute(line)
         except Exception as exc:  # report, keep the bridge alive
             ok, why = False, f"error: {exc}"
         log(("DONE    " if ok else "FAILED  ") + f"{line.strip()}: {why}")
         write_status("DONE" if ok else f"FAILED: {why}")
+        if task is not None:
+            if ok:
+                self.timer.task_complete(task, result=why)
+                if self.next_task == len(self.mission_tasks):
+                    self.end_mission("success")
+            else:
+                self.timer.task_failed(task, why)
+                self.end_mission("collision" if "collision" in why else "timeout" if "timeout" in why else "failed", why)
         return ok
 
 
@@ -360,31 +431,47 @@ def main() -> None:
                         help="keep V3's training-time LiDAR noise/dropout (default: clean simulated LiDAR)")
     parser.add_argument("--snapshot", type=Path, default=None,
                         help="save a PNG of the viewport after setting up the scene, then quit")
+    parser.add_argument("--headless", action="store_true",
+                        help="no window (batch evaluation with --plan; exits when the plan is done)")
+    parser.add_argument("--controller", choices=("ppo", "rule"), default="ppo",
+                        help="ppo (trained policy) or rule (B1 hand-coded reactive baseline); same safety layer")
+    parser.add_argument("--mission-plan", type=Path, default=None,
+                        help="plan JSON the incoming commands come from (to time the mission in watch mode)")
     parser.add_argument("--spin-guard", action="store_true",
                         help="override long in-place turns with FORWARD when the goal is ahead and the path is clear")
     args = parser.parse_args()
 
-    from stable_baselines3 import PPO
+    try:
+        from .eval_timing import PpoController, RuleController
+    except ImportError:  # pragma: no cover
+        from eval_timing import PpoController, RuleController
 
     # V3 trains with real-sensor noise and dropouts (sim-to-real augmentation); the simulated
     # LiDAR is ideal, so the demo feeds clean readings unless --sensor-noise.
     clean = {} if args.sensor_noise else dict(lidar_noise_std_m=0.0, lidar_ray_dropout=0.0, lidar_sector_dropout=0.0)
-    env = IsaacPointNavLidarEnv(headless=False, lidar_config=v3_lidar_config(hide_robot_visuals=args.hide_robot, **clean))
+    env = IsaacPointNavLidarEnv(headless=args.headless,
+                                lidar_config=v3_lidar_config(hide_robot_visuals=args.hide_robot, **clean))
     try:
-        import carb.settings
+        if not args.headless:
+            import carb.settings
 
-        carb.settings.get_settings().set("/app/window/hideUi", True)
-        env._lidar.enable_visualization()
-        model = PPO.load(str(args.model), device="cpu")
+            carb.settings.get_settings().set("/app/window/hideUi", True)
+            env._lidar.enable_visualization()
+        controller = PpoController(args.model) if args.controller == "ppo" else RuleController()
         _, info = env.reset(seed=0, options={"goal": (0.0, 0.0), "obstacles": []})
         people = SURVIVORS if args.scenario == "disaster" else ()
-        bridge = Bridge(env, model, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard, people=people)
+        timing_meta = {"scenario": args.scenario, "spin_guard": args.spin_guard, "sensor_noise": args.sensor_noise,
+                       "model": args.model.name if args.controller == "ppo" else "", "plan": ""}
+        bridge = Bridge(env, controller, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard,
+                        people=people, timing_meta=timing_meta)
         obstacles = [] if args.no_obstacles else [(*bridge.to_world(x, y), w) for x, y, w in DEMO_OBSTACLES]
         env._place_obstacles(obstacles)
         x0, y0, _ = bridge.start
-        dress_scenario(bridge, args.scenario)
+        if not args.headless:
+            dress_scenario(bridge, args.scenario)
         env.continue_to_goal((x0, y0))
-        frame_camera(bridge, args.scenario)
+        if not args.headless:
+            frame_camera(bridge, args.scenario)
         if args.snapshot is not None:
             from omni.kit.viewport.utility import capture_viewport_to_file, get_active_viewport
 
@@ -393,17 +480,20 @@ def main() -> None:
             env.settle_scan(60)
             log(f"snapshot saved to {args.snapshot}")
             return
-        log(f"scenario {args.scenario}; policy {args.model.name}; start pose = mission origin (0, 0), +x ahead, +y left; "
+        log(f"scenario {args.scenario}; controller {args.controller}; start pose = mission origin (0, 0), +x ahead, +y left; "
             f"{len(obstacles)} obstacles placed; spin guard {'ON' if args.spin_guard else 'off'}")
 
         if args.plan is not None:
             commands = plan_commands(args.plan)
             log(f"running {len(commands)} commands from {args.plan}")
+            bridge.timing_meta["plan"] = args.plan.name
+            bridge.begin_mission(commands, f"{time.strftime('%Y%m%d_%H%M%S')}_{args.scenario}_{args.controller}")
             for line in commands:
                 if not bridge.run(line):
                     break
-            log("plan finished; close the window to quit")
-            while env._simulation_app.is_running():
+            bridge.end_mission("failed", "plan aborted")   # no-op when the mission already ended
+            log("plan finished" + ("" if args.headless else "; close the window to quit"))
+            while not args.headless and env._simulation_app.is_running():
                 env.settle_scan(1)
             return
 
@@ -415,6 +505,11 @@ def main() -> None:
                 last = COMMAND_FILE.stat().st_mtime
                 line = COMMAND_FILE.read_text().strip()
                 if line:
+                    if bridge.timer is None and args.mission_plan is not None and args.mission_plan.exists():
+                        commands = plan_commands(args.mission_plan)
+                        if commands and commands[0] == line:
+                            bridge.timing_meta["plan"] = args.mission_plan.name
+                            bridge.begin_mission(commands, f"{time.strftime('%Y%m%d_%H%M%S')}_{args.scenario}_{args.controller}")
                     bridge.run(line)
             else:
                 env.settle_scan(2)
