@@ -52,14 +52,24 @@ DEMO_OBSTACLES = ((0.85, 0.62, 0.25), (1.72, 0.0, 0.25), (0.85, -0.62, 0.25))
 #   disaster: earthquake set dressing (disaster_scene.py): broken concrete blocks, trapped
 #             survivors next to both checkpoints, collapsed ceiling, responder base, dim lights
 SCENARIOS = ("patrol", "disaster")
-SURVIVORS = ((1.5, 0.75), (1.5, -0.75))
-ALIGN_ABOVE_DEG = 65.0     # trained goals were within about +-65 deg of the heading
-ALIGN_UNTIL_DEG = 30.0
+# Survivors (chest x, chest y, body heading deg), ~0.5 m beyond each checkpoint and away
+# from the routes. Bodies are below the LiDAR plane; Bridge.step's person-safety zone
+# blocks any forward move into them.
+SURVIVORS = ((2.45, 1.2, 30.0), (1.0, -1.3, 180.0))
+CAMERA_RANGE_M = 1.5
+BODY_HALF_WIDTH_M = 0.24      # survivor body: head-to-feet segment +- this
+ROBOT_RADIUS_M = 0.105
+PERSON_SAFETY_M = 0.15        # forward moves that would end closer than this to a body are blocked
+FORWARD_STEP_M = 0.03         # a little more than one FORWARD action moves
+# Training starts always faced the goal banks (mostly straight ahead), so the goal interface
+# first turns the robot toward the goal, then hands over to the policy.
+ALIGN_ABOVE_DEG = 15.0
+ALIGN_UNTIL_DEG = 8.0
 ROTATE_TOLERANCE_DEG = 6.0
 STALL_STEPS = 20           # no 3 cm of progress in this many RL steps -> recovery
-SPIN_GUARD_TURNS = 10      # --spin-guard: ~90 deg of turning in a row ...
-SPIN_GUARD_BEARING_DEG = 35.0   # ... while the goal is already ahead ...
-SPIN_GUARD_FRONT_M = 0.50       # ... and the path in front is clear -> drive forward instead
+SPIN_GUARD_TURNS = 8       # --spin-guard: after ~65 deg of turning in a row ...
+SPIN_GUARD_BEARING_DEG = 45.0   # ... drive forward if the goal is roughly ahead and
+SPIN_GUARD_FRONT_M = 0.50       # ... the path in front is clear, else turn the short way to the goal
 STALL_PROGRESS_M = 0.03
 RECOVERY_FORWARD_STEPS = 6
 
@@ -82,11 +92,21 @@ def parse_command(line: str):
 
 class Bridge:
     def __init__(self, env: IsaacPointNavLidarEnv, model, max_goal_radius: float, max_leg: float,
-                 spin_guard: bool = False):
+                 spin_guard: bool = False, people=()):
         self.env, self.model, self.spin_guard = env, model, spin_guard
-        self.max_goal_radius, self.max_leg = max_goal_radius, max_leg
         state = env._state()
         self.start = (state.x, state.y, state.yaw)
+        self.people = [(x, y) for x, y, _ in people]   # chest (x, y), start frame: what the camera finds
+        # Body segments head -> feet in WORLD coordinates for the person-safety zone.
+        self.bodies = []
+        for x, y, heading in people:
+            c, s = math.cos(math.radians(heading)), math.sin(math.radians(heading))
+            head = self.to_world(x - 0.42 * c, y - 0.42 * s)
+            feet = self.to_world(x + 0.80 * c, y + 0.80 * s)
+            self.bodies.append((head, feet))
+        self.found = set()
+        self.safety_active = False
+        self.max_goal_radius, self.max_leg = max_goal_radius, max_leg
 
     # ---------------------------------------------------------------- frames
     def to_world(self, x: float, y: float) -> tuple[float, float]:
@@ -97,6 +117,36 @@ class Bridge:
         x0, y0, yaw0 = self.start
         dx, dy = wx - x0, wy - y0
         return math.cos(yaw0) * dx + math.sin(yaw0) * dy, -math.sin(yaw0) * dx + math.cos(yaw0) * dy
+
+    def person_clearance(self, wx: float, wy: float) -> float:
+        """Distance from a robot centre at world (wx, wy) to the nearest survivor body surface."""
+        best = math.inf
+        for (ax, ay), (bx, by) in self.bodies:
+            dx, dy = bx - ax, by - ay
+            t = max(0.0, min(1.0, ((wx - ax) * dx + (wy - ay) * dy) / (dx * dx + dy * dy)))
+            best = min(best, math.hypot(wx - ax - t * dx, wy - ay - t * dy) - BODY_HALF_WIDTH_M - ROBOT_RADIUS_M)
+        return best
+
+    def step(self, action):
+        """env.step with the person-safety zone: never drive forward into a survivor."""
+        action = PointNavAction(int(action))
+        if action == PointNavAction.FORWARD and self.bodies:
+            state = self.env._state()
+            nx, ny = state.x + FORWARD_STEP_M * math.cos(state.yaw), state.y + FORWARD_STEP_M * math.sin(state.yaw)
+            now, after = self.person_clearance(state.x, state.y), self.person_clearance(nx, ny)
+            if after < PERSON_SAFETY_M and after < now:
+                # Turn away from the nearest body instead (toward the side that increases clearance).
+                left = self.person_clearance(state.x + FORWARD_STEP_M * math.cos(state.yaw + 0.5),
+                                             state.y + FORWARD_STEP_M * math.sin(state.yaw + 0.5))
+                right = self.person_clearance(state.x + FORWARD_STEP_M * math.cos(state.yaw - 0.5),
+                                              state.y + FORWARD_STEP_M * math.sin(state.yaw - 0.5))
+                action = PointNavAction.TURN_LEFT if left >= right else PointNavAction.TURN_RIGHT
+                if not self.safety_active:
+                    log(f"  person safety: {max(now, 0.0):.2f} m from a survivor, turning away instead of driving forward")
+                self.safety_active = True
+                return self.env.step(int(action))
+        self.safety_active = False
+        return self.env.step(int(action))
 
     def pose(self):
         state = self.env._state()
@@ -110,7 +160,7 @@ class Bridge:
             error = math.atan2(math.sin(target_yaw - self.env._state().yaw), math.cos(target_yaw - self.env._state().yaw))
             if abs(math.degrees(error)) <= tolerance_deg:
                 return
-            self.env.step(PointNavAction.TURN_LEFT if error > 0 else PointNavAction.TURN_RIGHT)
+            self.step(PointNavAction.TURN_LEFT if error > 0 else PointNavAction.TURN_RIGHT)
 
     def drive_leg(self, goal_world: tuple[float, float]) -> tuple[bool, str]:
         observation, info = self.env.continue_to_goal(goal_world)
@@ -135,12 +185,17 @@ class Bridge:
             action = PointNavAction(int(action))
             turning = action in (PointNavAction.TURN_LEFT, PointNavAction.TURN_RIGHT)
             turns = turns + 1 if turning else 0
-            if (self.spin_guard and turning and turns > SPIN_GUARD_TURNS
-                    and abs(math.degrees(info["relative_goal_bearing_rad"])) < SPIN_GUARD_BEARING_DEG
-                    and info["clearances_m"]["front"] > SPIN_GUARD_FRONT_M):
-                log("  spin guard: goal ahead and path clear, driving forward instead of turning")
-                action, turns = PointNavAction.FORWARD, 0
-            observation, _, terminated, truncated, info = self.env.step(int(action))
+            if self.spin_guard and turning and turns > SPIN_GUARD_TURNS:
+                bearing = info["relative_goal_bearing_rad"]
+                if abs(math.degrees(bearing)) < SPIN_GUARD_BEARING_DEG and info["clearances_m"]["front"] > SPIN_GUARD_FRONT_M:
+                    log("  spin guard: goal ahead and path clear, driving forward instead of turning")
+                    action, turns = PointNavAction.FORWARD, 0
+                else:
+                    toward = PointNavAction.TURN_LEFT if bearing > 0 else PointNavAction.TURN_RIGHT
+                    if action != toward:
+                        log("  spin guard: turning the short way back toward the goal")
+                    action = toward
+            observation, _, terminated, truncated, info = self.step(action)
             c = info["clearances_m"]
             if info["episode_steps"] % 10 == 0:
                 log(f"  RL step {info['episode_steps']:3d} {PointNavAction(int(action)).name:<10} "
@@ -166,7 +221,7 @@ class Bridge:
             observation, info = self.env.continue_to_goal(goal_world)
             if info["clearances_m"]["front"] < 0.30:
                 break
-            observation, _, terminated, _, info = self.env.step(PointNavAction.FORWARD)
+            observation, _, terminated, _, info = self.step(PointNavAction.FORWARD)
             if info["collision"]:
                 return observation, info
             if terminated:
@@ -199,6 +254,26 @@ class Bridge:
         self.turn_until(target, ROTATE_TOLERANCE_DEG, limit=int(abs(degrees) / 5) + 20)
         return True, f"rotated {degrees:.0f} deg"
 
+    def detect(self) -> tuple[bool, str]:
+        """Camera stand-in: nearest person within CAMERA_RANGE_M (simulation ground truth).
+
+        The robot turns to face them, as a real camera check would need.
+        """
+        _, cx, cy = self.pose()
+        candidates = [(math.hypot(px - cx, py - cy), i, px, py) for i, (px, py) in enumerate(self.people)]
+        candidates = [c for c in candidates if c[0] <= CAMERA_RANGE_M]
+        if not candidates:
+            return True, "no survivor in camera range"
+        distance, index, px, py = min(candidates)
+        wx, wy = self.to_world(px, py)
+        state = self.env._state()
+        # Far goal in the person's direction keeps the episode active while turning in place.
+        self.env.continue_to_goal((state.x + 10 * (wx - state.x), state.y + 10 * (wy - state.y)))
+        self.turn_until(math.atan2(wy - state.y, wx - state.x), 10.0)
+        self.found.add(index)
+        return True, (f"SURVIVOR DETECTED at ({px:.2f}, {py:.2f}), {distance:.2f} m away "
+                      f"({len(self.found)}/{len(self.people)} found)")
+
     def execute(self, line: str) -> tuple[bool, str]:
         action, args = parse_command(line)
         _, cx, cy = self.pose()
@@ -214,7 +289,9 @@ class Bridge:
         if action == "scan_with_lidar":
             c = self.env._info(self.env._state())["clearances_m"]
             return True, f"scan: front={c['front']:.2f} m left={c['left']:.2f} m right={c['right']:.2f} m"
-        if action in ("detect_with_camera", "wait_for_signal", "communicate_with_apm", "retrieve_object"):
+        if action == "detect_with_camera":
+            return self.detect()
+        if action in ("wait_for_signal", "communicate_with_apm", "retrieve_object"):
             self.env.settle_scan(30)
             return True, "simulated"
         return True, "not supported in simulation, skipped"
@@ -279,6 +356,8 @@ def main() -> None:
     parser.add_argument("--no-obstacles", action="store_true")
     parser.add_argument("--hide-robot", action="store_true")
     parser.add_argument("--scenario", choices=SCENARIOS, default="patrol")
+    parser.add_argument("--sensor-noise", action="store_true",
+                        help="keep V3's training-time LiDAR noise/dropout (default: clean simulated LiDAR)")
     parser.add_argument("--snapshot", type=Path, default=None,
                         help="save a PNG of the viewport after setting up the scene, then quit")
     parser.add_argument("--spin-guard", action="store_true",
@@ -287,7 +366,10 @@ def main() -> None:
 
     from stable_baselines3 import PPO
 
-    env = IsaacPointNavLidarEnv(headless=False, lidar_config=v3_lidar_config(hide_robot_visuals=args.hide_robot))
+    # V3 trains with real-sensor noise and dropouts (sim-to-real augmentation); the simulated
+    # LiDAR is ideal, so the demo feeds clean readings unless --sensor-noise.
+    clean = {} if args.sensor_noise else dict(lidar_noise_std_m=0.0, lidar_ray_dropout=0.0, lidar_sector_dropout=0.0)
+    env = IsaacPointNavLidarEnv(headless=False, lidar_config=v3_lidar_config(hide_robot_visuals=args.hide_robot, **clean))
     try:
         import carb.settings
 
@@ -295,7 +377,8 @@ def main() -> None:
         env._lidar.enable_visualization()
         model = PPO.load(str(args.model), device="cpu")
         _, info = env.reset(seed=0, options={"goal": (0.0, 0.0), "obstacles": []})
-        bridge = Bridge(env, model, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard)
+        people = SURVIVORS if args.scenario == "disaster" else ()
+        bridge = Bridge(env, model, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard, people=people)
         obstacles = [] if args.no_obstacles else [(*bridge.to_world(x, y), w) for x, y, w in DEMO_OBSTACLES]
         env._place_obstacles(obstacles)
         x0, y0, _ = bridge.start

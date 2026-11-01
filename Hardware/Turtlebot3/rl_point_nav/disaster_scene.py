@@ -155,7 +155,7 @@ def _debris_block(b: _Builder, x: float, y: float, width: float, rng: random.Ran
 def _survivor(b: _Builder, x: float, y: float, heading_deg: float, shirt, rng: random.Random) -> None:
     """A person lying face up, legs pinned under a fallen slab, one arm raised for help.
 
-    Everything stays below 0.10 m (under the LiDAR plane). (x, y) is the head.
+    (x, y) is the head; the body lies along heading_deg (head to feet ~1.15 m).
     """
     c, s = math.cos(math.radians(heading_deg)), math.sin(math.radians(heading_deg))
 
@@ -166,22 +166,24 @@ def _survivor(b: _Builder, x: float, y: float, heading_deg: float, shirt, rng: r
         px, py = at(along, side)
         b.capsule("survivor", px, py, z, radius, length, color, (0.0, pitch, heading_deg + yaw))
 
+    # Body kept below 0.15 m: under the 2D LiDAR plane (~0.17 m), so the policy's view of
+    # the room is unchanged; the bridge's person-safety zone keeps the robot off people.
     hx, hy = at(0.0, 0.0)
-    b.sphere("survivor", hx, hy, 0.06, 0.06, SKIN, (1.15, 0.95, 0.9))                  # head
+    b.sphere("survivor", hx, hy, 0.085, 0.07, SKIN, (1.1, 0.95, 0.95))                    # head
     hx, hy = at(-0.035, 0.0)
-    b.sphere("survivor", hx, hy, 0.05, 0.058, HAIR, (1.0, 1.0, 0.75))                   # hair
-    limb(0.11, 0.0, 0.04, 0.03, 0.08, SKIN)                                               # neck
-    limb(0.33, 0.0, 0.055, 0.085, 0.42, shirt)                                            # chest
-    limb(0.33, 0.0, 0.05, 0.075, 0.42, shirt, 0.0, 0.0)
-    limb(0.30, 0.20, 0.04, 0.035, 0.30, shirt, -20.0)                                     # left arm, raised
-    limb(0.10, 0.27, 0.05, 0.03, 0.26, SKIN, 40.0, -12.0)
-    limb(0.30, -0.20, 0.04, 0.035, 0.30, shirt, 15.0)                                     # right arm
-    limb(0.52, -0.25, 0.035, 0.03, 0.24, SKIN, 10.0)
-    limb(0.70, 0.08, 0.045, 0.06, 0.40, TROUSERS, 3.0)                                    # legs
-    limb(0.70, -0.08, 0.045, 0.06, 0.40, TROUSERS, -3.0)
+    b.sphere("survivor", hx, hy, 0.078, 0.066, HAIR, (1.0, 1.05, 0.9))                    # hair
+    limb(0.11, 0.0, 0.06, 0.04, 0.09, SKIN)                                               # neck
+    limb(0.33, 0.0, 0.07, 0.08, 0.40, shirt)                                              # chest
+    limb(0.58, 0.0, 0.065, 0.075, 0.22, TROUSERS)                                         # hips
+    limb(0.30, 0.16, 0.05, 0.04, 0.32, shirt, -6.0)                                       # arms along the body
+    limb(0.30, -0.16, 0.05, 0.04, 0.32, shirt, 6.0)
+    limb(0.50, 0.18, 0.045, 0.035, 0.16, SKIN)                                            # forearms / hands
+    limb(0.50, -0.18, 0.045, 0.035, 0.16, SKIN)
+    limb(0.85, 0.07, 0.06, 0.06, 0.45, TROUSERS, 2.0)                                     # legs
+    limb(0.85, -0.07, 0.06, 0.06, 0.45, TROUSERS, -2.0)
     # Fallen slab pinning the legs, plus broken pieces and dust (all below 0.10 m).
     px, py = at(0.85, 0.0)
-    b.box("pin", px, py, 0.085, (0.55, 0.70, 0.045), CONCRETE_DARK, (5.0, -4.0, heading_deg + 20.0))
+    b.box("pin", px, py, 0.135, (0.55, 0.60, 0.03), CONCRETE_DARK, (4.0, -3.0, heading_deg + 20.0))
     for _ in range(14):
         px, py = at(rng.uniform(0.5, 1.25), rng.uniform(-0.45, 0.45))
         size = rng.uniform(0.025, 0.07)
@@ -197,7 +199,7 @@ def _collapse_zone(b: _Builder, rng: random.Random) -> None:
     """Fallen ceiling and furniture ahead of the search area (>= 0.9 m from the routes)."""
     b.box("ceiling", 2.95, 0.2, 0.35, (1.3, 0.9, 0.06), CONCRETE, (0, 24, 12))
     b.box("ceiling", 3.1, -0.6, 0.22, (1.0, 0.7, 0.06), CONCRETE_DARK, (0, -16, -25))
-    b.cylinder("beam", 3.2, 1.2, 0.3, 0.07, 1.6, STEEL, (0, 75, 30))
+    b.cylinder("beam", 3.3, 0.3, 0.3, 0.07, 1.6, STEEL, (0, 75, -20))
     b.box("shelf", 2.7, -1.0, 0.12, (0.9, 0.35, 0.24), WOOD, (0, 0, 70))
     b.box("ceiling", -0.2, 2.3, 0.3, (1.4, 0.8, 0.06), CONCRETE, (20, 0, -8))
     b.cylinder("beam", 0.4, 2.7, 0.25, 0.06, 1.8, STEEL, (78, 0, 10))
@@ -240,7 +242,7 @@ def _lighting(b: _Builder) -> None:
 
 
 def build(env, to_world, yaw0: float, debris_blocks, survivors) -> None:
-    """debris_blocks: (x, y, width) of the RL obstacle cubes; survivors: checkpoint (x, y)."""
+    """debris_blocks: (x, y, width) of the RL obstacle cubes; survivors: (chest x, chest y, heading deg)."""
     from pxr import Gf, UsdGeom
 
     rng = random.Random(7)
@@ -249,11 +251,9 @@ def build(env, to_world, yaw0: float, debris_blocks, survivors) -> None:
         UsdGeom.Gprim(env._stage.GetPrimAtPath(path)).CreateDisplayColorAttr([Gf.Vec3f(*CONCRETE)])
     for x, y, width in debris_blocks:
         _debris_block(b, x, y, width, rng)
-    # Each survivor lies just beyond its checkpoint, pointing away from the robot's approach.
-    for index, (x, y) in enumerate(survivors):
-        side = 1.0 if y >= 0 else -1.0
-        heading = 25.0 if side > 0 else -5.0   # right side: clear of the chairs at y < -1.3
-        _survivor(b, x + 0.25, y + side * 0.3, heading, SHIRT[index % len(SHIRT)], rng)
+    for index, (x, y, heading) in enumerate(survivors):
+        c, s = math.cos(math.radians(heading)), math.sin(math.radians(heading))
+        _survivor(b, x - 0.33 * c, y - 0.33 * s, heading, SHIRT[index % len(SHIRT)], rng)
     _collapse_zone(b, rng)
     _responder_base(b)
     _lighting(b)
