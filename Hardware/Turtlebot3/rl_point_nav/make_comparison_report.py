@@ -480,8 +480,9 @@ def build_pdf(stamp: str, out_pdf: Path) -> None:
         Paragraph("Executive summary", h1),
         Paragraph("This report compares three ways of executing the movement commands of an approved CyberScape (LLM) "
                   "mission plan on a simulated TurtleBot3: <b>B0</b>, the execution controller the system used before "
-                  "reinforcement learning; <b>B1</b>, a hand-coded heuristic; and <b>PPO</b>, the trained reinforcement-learning "
-                  "navigation policy. All three drive the same robot in the same simulator on identical, seeded scenarios, "
+                  "reinforcement learning; <b>B1</b>, a hand-coded heuristic with exactly PPO's inputs and actions, added "
+                  "to show whether learning beats common-sense rules when everything else is equal; and <b>PPO</b>, the "
+                  "trained reinforcement-learning navigation policy. All three drive the same robot in the same simulator on identical, seeded scenarios, "
                   f"and are scored with the metrics of the Experimental Design slide. {sum(len(r) for r in data.values())} "
                   f"navigation episodes and {len(missions)} full CyberScape missions were run.", body),
         Spacer(1, 4),
@@ -559,6 +560,14 @@ def build_pdf(stamp: str, out_pdf: Path) -> None:
                   "the robot node's <font face='Courier'>_sector_min_distance</font>; the random side uses a seeded generator "
                   "so each scenario is reproducible.", small),
         Paragraph("2.2 B1 &mdash; heuristic baseline", h2),
+        Paragraph("<b>Why B1 was added.</b> B0 shows whether RL beats the system CyberScape used before, but B0 differs "
+                  "from PPO in many ways at once: it uses continuous speed commands, a different sensor reading and a fixed "
+                  "bypass manoeuvre. B1 isolates the question that matters for the thesis: <i>does learning add anything "
+                  "beyond common-sense rules when everything else is equal?</i> B1 sees exactly the same 6 numbers as PPO, "
+                  "uses exactly the same 4 actions and the same sensor model, but its behaviour is written by hand instead "
+                  "of learned. If PPO only matched B1, the learned policy would add nothing; a clear gap over B1 is evidence "
+                  "that the improvement comes from learning. It is also the heuristic baseline named on the Experimental "
+                  "Design slide (\"Existing system / heuristic baseline\").", body),
         Paragraph("Reactive rules on PPO's 6-number observation (goal distance, sin/cos goal bearing, front/left/right "
                   "clearance): if front &lt; 0.35 m turn toward the clearer side and then commit to 6 forward steps; else "
                   "if the goal is more than 0.20 rad off and that side has &ge; 0.25 m clearance, turn toward it; else drive "
