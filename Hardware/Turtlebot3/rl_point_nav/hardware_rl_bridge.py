@@ -45,14 +45,29 @@ except ImportError:
     sys.modules["isaac_point_nav_lidar_env"] = _stub
 
 from burger_comm_node import complete_phase, get_instruction, report_error, send_heartbeat  # noqa: E402
-from cyberscape_rl_bridge import ALIGN_ABOVE_DEG, ALIGN_UNTIL_DEG, Bridge, log, plan_commands  # noqa: E402
+import cyberscape_rl_bridge  # noqa: E402
+from cyberscape_rl_bridge import ALIGN_ABOVE_DEG, ALIGN_UNTIL_DEG, Bridge, plan_commands  # noqa: E402
+from mission_record import MAP_LEGEND, MissionRecorder, new_folder  # noqa: E402
+import numpy as np  # noqa: E402
 from policy_numpy import NumpyPolicy  # noqa: E402
-from route_planner import RoutePlanner, lookahead, route_length  # noqa: E402
+from route_planner import RESOLUTION_M, RoutePlanner, lookahead, route_length  # noqa: E402
 from ros_point_nav_lidar_env import RosPointNavLidarEnv, v2_config  # noqa: E402
 
 DEFAULT_MODEL = HERE / "models" / "v3" / "checkpoint_1000000_steps.npz"
 HEARTBEAT_PERIOD_S = 5.0
 SETTLE_FRAME_S = 1.0 / 60.0   # Isaac settle_scan frames are 60 Hz physics frames
+RECORDER: MissionRecorder | None = None
+_print_log = cyberscape_rl_bridge.log
+
+
+def log(message: str) -> None:
+    """Bridge log line on screen and, during a run, in the mission's log.txt."""
+    _print_log(message)
+    if RECORDER is not None:
+        RECORDER.log(message)
+
+
+cyberscape_rl_bridge.log = log   # Bridge's own lines go to the mission log too
 
 
 class NumpyController:
@@ -75,6 +90,7 @@ class HardwareMissionEnv:
 
     def __init__(self, ros_env: RosPointNavLidarEnv) -> None:
         self.ros = ros_env
+        self.path: list[tuple[float, float]] = []   # odometry frame, after every action
 
     def _state(self):
         return self.ros._current_state()
@@ -91,6 +107,7 @@ class HardwareMissionEnv:
 
     def step(self, action):
         observation, reward, terminated, truncated, info = self.ros.step(action)
+        self.path.append((info["pose"]["x"], info["pose"]["y"]))
         return observation, reward, terminated, truncated, self._with_lidar(info)
 
     def _info(self, state) -> dict:
@@ -132,6 +149,8 @@ class PlanningBridge(Bridge):
         super().__init__(*args, **kwargs)
         self.planner = RoutePlanner(self.start[:2])
         self.route_changes = 0
+        self.route_log: list[dict] = []    # mission frame: first route per target + changed routes
+        self.target_log: list[tuple[float, float]] = []
         self.update_map()
 
     def update_map(self) -> None:
@@ -152,6 +171,7 @@ class PlanningBridge(Bridge):
             log(f"  ({x:.2f}, {y:.2f}) is {radius:.2f} m from the start; clamped to {self.max_goal_radius:.2f} m")
             x, y = x * scale, y * scale
         target = self.to_world(x, y)
+        self.target_log.append((x, y))
         previous = None   # (route length, robot position) of the last plan
         changes_before = self.route_changes
         best, legs_without_progress = math.inf, 0
@@ -166,6 +186,7 @@ class PlanningBridge(Bridge):
             length = route_length(route)
             if previous is None:
                 log(f"  route to ({x:.2f}, {y:.2f}): {length:.2f} m")
+                self._record_route(route, (x, y), changed=False)
             else:
                 # Following the old route would leave (old length - distance driven) to go.
                 expected = previous[0] - math.dist(previous[1], (state.x, state.y))
@@ -173,6 +194,7 @@ class PlanningBridge(Bridge):
                     self.route_changes += 1
                     self.count("route_change")
                     log(f"  obstacle seen: route changed, now {length:.2f} m to ({x:.2f}, {y:.2f})")
+                    self._record_route(route, (x, y), changed=True)
             previous = (length, (state.x, state.y))
             final = length <= self.LEG_M
             ok, why = self.drive_short_leg(target if final else lookahead(route, self.LEG_M), final)
@@ -188,6 +210,10 @@ class PlanningBridge(Bridge):
                     self.recover(target, {})
                     legs_without_progress = 0
         return False, f"gave up after {self.MAX_LEGS} legs"
+
+    def _record_route(self, route, target, changed: bool) -> None:
+        self.route_log.append({"target": target, "changed": changed,
+                               "points": [self.to_mission(px, py) for px, py in route]})
 
     def drive_short_leg(self, goal_world: tuple[float, float], final: bool) -> tuple[bool, str]:
         observation, info = self.env.continue_to_goal(goal_world)
@@ -209,7 +235,20 @@ class PlanningBridge(Bridge):
         return True, "leg done"
 
 
-def run_server(bridge: Bridge, server_url: str, robot_name: str) -> None:
+def save_record(bridge: Bridge, env: HardwareMissionEnv) -> None:
+    """Write the mission folder (path, routes, map.png) from the bridge's current state."""
+    if RECORDER is None:
+        return
+    RECORDER.path = [bridge.to_mission(x, y) for x, y in env.path]
+    obstacles = []
+    if isinstance(bridge, PlanningBridge):
+        cells = np.argwhere(bridge.planner.obstacles())
+        obstacles = [bridge.to_mission(*bridge.planner.to_xy((int(i), int(j)))) for i, j in cells]
+        RECORDER.routes, RECORDER.targets = bridge.route_log, bridge.target_log
+    RECORDER.save(obstacles, RESOLUTION_M)
+
+
+def run_server(bridge: Bridge, server_url: str, robot_name: str, after_command=lambda: None) -> None:
     """burger_comm_node.run_mission, with each instruction executed by the Bridge."""
 
     def _heartbeat_loop():
@@ -238,6 +277,7 @@ def run_server(bridge: Bridge, server_url: str, robot_name: str) -> None:
             except Exception as exc:  # report, keep the node alive
                 ok, why = False, f"error: {exc}"
             log(("DONE    " if ok else "FAILED  ") + f"{line}: {why}")
+            after_command()
             outputs[f"instruction_{index}"] = why
             if not ok:
                 report_error(server_url, robot_name, phase, index, why)
@@ -279,11 +319,15 @@ def main() -> None:
     if args.no_safety_filter:
         config = dataclasses.replace(config, cmd_vel_topic="/cmd_vel")
     ros_env = RosPointNavLidarEnv(0.0, 0.0, use_lidar=True, config=config, lidar_profile=profile)
+    global RECORDER
+    RECORDER = MissionRecorder(new_folder(HERE / "missions", args.plan))
+    env = bridge = None
     try:
         env = HardwareMissionEnv(ros_env)
         bridge_class = Bridge if args.no_replan else PlanningBridge
         bridge = bridge_class(env, controller, args.max_goal_radius, args.max_leg_m,
                               spin_guard=not args.no_spin_guard)
+        log(f"recording this run in {RECORDER.folder}; {MAP_LEGEND}")
         log(f"model {args.model.name} ({profile} sectors); start pose = mission origin (0, 0), "
             f"+x ahead, +y left; legs <= {args.max_leg_m} m; "
             f"spin guard {'off' if args.no_spin_guard else 'ON'}; "
@@ -294,14 +338,19 @@ def main() -> None:
             for line in commands:
                 ok, why = bridge.execute(line)
                 log(("DONE    " if ok else "FAILED  ") + f"{line}: {why}")
+                save_record(bridge, env)
                 if not ok:
                     break
             return
-        run_server(bridge, args.server.rstrip("/"), args.robot)
+        run_server(bridge, args.server.rstrip("/"), args.robot, after_command=lambda: save_record(bridge, env))
     except KeyboardInterrupt:
         log("interrupted")
     finally:
         ros_env.close()   # always sends a zero velocity
+        if bridge is not None:
+            save_record(bridge, env)
+            log(f"record saved in {RECORDER.folder}")
+        RECORDER.close()
 
 
 if __name__ == "__main__":

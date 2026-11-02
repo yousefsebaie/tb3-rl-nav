@@ -1,0 +1,14 @@
+{
+    "target": "TURTLEBOT3",
+    "phases": [
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 1,
+            "state": "Burger at base (0, 0), two obstacles on the line straight ahead.",
+            "phase_target": "Drive to (2.5, 0) straight ahead, going around both obstacles, and scan.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((2.5, 0.0))\nTurtleBot3.scan_with_lidar()"
+        }
+    ]
+}
