@@ -1,0 +1,14 @@
+21:31:04 recording this run in /home/ubuntu/rl_point_nav/missions/20260506_213101_rl_loop_burger_plan; map.png: up = straight ahead at the start; grey grid = 0.5 m; black = obstacles seen; blue = planned routes (first and changed); red = driven path; green = start; orange = checkpoints
+21:31:04 model checkpoint_1000000_steps.npz (v3 sectors); start pose = mission origin (0, 0), +x ahead, +y left; legs <= 1.4 m; spin guard ON; route re-planning ON; commands to /cmd_vel
+21:31:04 running 5 commands from rl_loop_burger_plan.json
+21:31:04   route to (1.20, 0.00): 1.82 m
+21:31:41   obstacle seen: route changed, now 0.65 m to (1.20, 0.00)
+21:32:04 DONE    TurtleBot3.move_to_point((1.2, 0.0)): arrived (1 route changes)
+21:32:04   route to (2.40, 0.00): 1.38 m
+21:32:47 DONE    TurtleBot3.move_to_point((2.4, 0.0)): arrived (0 route changes)
+21:32:47   route to (2.40, -0.90): 0.97 m
+21:33:20 DONE    TurtleBot3.move_to_point((2.4, -0.9)): arrived (0 route changes)
+21:33:20   route to (0.00, -0.50): 2.65 m
+21:34:50 DONE    TurtleBot3.move_to_point((0.0, -0.5)): arrived (0 route changes)
+21:34:50 DONE    TurtleBot3.scan_with_lidar(): scan: front=1.33 m left=1.16 m right=0.75 m
+21:34:50 record saved in /home/ubuntu/rl_point_nav/missions/20260506_213101_rl_loop_burger_plan

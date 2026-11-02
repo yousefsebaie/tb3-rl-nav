@@ -1,0 +1,23 @@
+{
+    "target": "TURTLEBOT3",
+    "phases": [
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 1,
+            "state": "Burger at base (0, 0). Small obstacle ahead, then a box (left) and a bin (right) with a gap between them.",
+            "phase_target": "Pass the small obstacle and drive through the gap between the box and the bin.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((1.2, 0.0))\nTurtleBot3.move_to_point((2.4, 0.0))"
+        },
+        {
+            "target": "TURTLEBOT3",
+            "phase_number": 2,
+            "state": "Burger behind the box and the bin.",
+            "phase_target": "Turn right behind the bin and drive back along the right side to the end point next to the start.",
+            "inputs": [],
+            "outputs": {},
+            "low_level_plan": "TurtleBot3.move_to_point((2.4, -0.9))\nTurtleBot3.move_to_point((0.0, -0.5))\nTurtleBot3.scan_with_lidar()"
+        }
+    ]
+}
