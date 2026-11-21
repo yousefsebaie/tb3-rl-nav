@@ -152,7 +152,10 @@ git pull origin main
 | Device | IP |
 |---|---|
 | Mac | 192.168.137.171 (check with `ipconfig getifaddr en0`) |
-| Burger | 192.168.137.146 (find it in the hotspot device list) |
+| Burger 1 (hostname `ubuntu`, `ROS_DOMAIN_ID=30`) | 192.168.137.65 (was .146; find it in the hotspot device list) |
+| Burger 2 (hostname `burger2`, `ROS_DOMAIN_ID=31`, no camera) | 192.168.137.191 |
+
+**Burger 2** runs a byte-for-byte copy of Burger 1's SD card (2026-11-21; image at `~/burger1_card.img` on the Mac, also a backup of Burger 1). After the copy: new hostname, new machine ID (which also gave it a new hotspot IP), `ROS_DOMAIN_ID=31`. Same LDS-02 LiDAR; the OpenCR firmware worked as is (`/scan` 9.3 Hz, `/odom` 20 Hz). The two robots use different domain IDs so a `/cmd_vel` meant for one never moves the other; each runs its own bridge and talks to CyberScape over HTTP. `sudo` on the robots needs the password (not stored here).
 | PuppyPi | 192.168.137.136 |
 
 - **Mac server:** `cd ~/tb3-rl-nav && source .venv/bin/activate && python3 hitl-comm-server.py`
