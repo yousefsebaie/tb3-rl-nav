@@ -120,11 +120,20 @@ Server on the Mac for the hardware: run it from a copy of the repo with its own 
 **Battery:** below ~11.1 V the wheel node crashes (`There is no status packet!`, then `stack smashing detected`) and after a restart the motors are off (`torque: false` on `/sensor_state`). Charge first. Turn the motors on with `ros2 service call /motor_power std_srvs/srv/SetBool "{data: true}"`.
 
 ## Hardware PC: next steps
-1. Charge the Burger. Three SSH windows: bringup; safety filter (or stop it for `--no-safety-filter`); RL. Check `torque: true` before driving.
-2. Run the full cycle in server mode: LLM plans → approve → `hardware_rl_bridge.py --server ...` drives.
-3. Repeat the mission with different box layouts; save the window output (the bridge log only goes to the screen).
-4. Optional: write the bridge log and the map/route to a file per mission, for the report.
-5. When it works, open a Pull Request from `hardware` into `main`.
+MAPPO handoff ([MAPPO_HARDWARE_HANDOFF.md](MAPPO_HARDWARE_HANDOFF.md) section 7), status on 2026-11-23:
+- **Built and unit-tested on the Mac** (`python3 -m unittest test_mappo_hardware`, 10 tests against the simulator's formulas):
+  - `lidar_sectors.py`: profile `v5` (the 8 sectors, each computed on its own rays, overlaps included). `REAL_MOUNT_M = (+0.032, 0)` for the caster-first Burgers; V3/V4/V5 are re-measured from the training mount `STOCK_MOUNT_M = (-0.032, 0)`, so an obstacle 0.50 m from the LDS now reads 0.564, as in training. This changes V3 on hardware too (it used to read 0.50). The route planner takes the mount as a parameter (sim keeps the stock one).
+  - `mappo_hardware.py`: shared mission frame, UDP pose exchange between the Pis (port 47110, 10 Hz, poses older than 0.5 s refused), teammate inputs, the 0.105 m teammate circle merged into the scan.
+  - `ros_mappo_env.py`: the 15 V5 inputs on the robot. `mappo_dry_run.py`: steps 3 and 4 without driving (dummy command topic), logs a CSV per robot.
+  - With the teammate "far and idle", V5 picks V4's action in 93.7% of 2000 random states.
+- **To do on the robots, in order:**
+  1. Measure the LDS offset with a ruler (wheel-axle line → LDS centre, along the driving direction) and set `REAL_MOUNT_M`.
+  2. Step 1: copy V4 to `~/rl_point_nav/models/v4/` (with `profile.txt` = `v3`), run the loop plan with V3 and with V4 on Burger 1.
+  3. Step 2: the same on Burger 2.
+  4. Step 3: `mappo_dry_run.py` on one robot (no `--peer`).
+  5. Step 4: `mappo_dry_run.py` on both robots with `--peer`, robots still, checked with a tape measure.
+  6. Steps 5–7 (encounters, align-first and gap controller, phase barrier + CyberScape): not built yet.
+- Older items: the full single-robot cycle in server mode (LLM plans → approve → `hardware_rl_bridge.py --server ...`), and a Pull Request from `hardware` into `main`.
 
 ## Simulation PC: next steps
 1. **Get the hardware work.** Review and merge the `hardware` → `main` Pull Request, then run `git switch sim && git pull origin main`. Or merge it directly: `git fetch && git merge origin/hardware`.
@@ -164,7 +173,7 @@ git pull origin main
 
 **Burger 2** runs a byte-for-byte copy of Burger 1's SD card (2026-11-21; image at `~/burger1_card.img` on the Mac, also a backup of Burger 1). After the copy: new hostname, new machine ID (which also gave it a new hotspot IP), `ROS_DOMAIN_ID=31`. Same LDS-02 LiDAR; the OpenCR firmware worked as is (`/scan` 9.3 Hz, `/odom` 20 Hz). At first the wheels didn't turn (not even with the OpenCR SW1/SW2 buttons): the Dynamixel chain cable to motor ID 1 was half out, so that motor's LED never blinked at power-on. Re-seated it; first test 2026-11-23: 0.201 m forward, 43.5° turn as commanded. If a Burger doesn't move with torque on, check that both motor LEDs blink once at power-on.
 
-**Both Burgers drive ball-first** (the caster leads, the camera on Burger 1 faces the caster side, the LiDAR's 0° faces the caster side). That is the reverse of the stock TurtleBot3 and of the simulation, where the caster trails; it is consistent within each robot, so missions work. Seen from the caster side, the motors must be **ID 2 on your left, ID 1 on your right** on both robots. Burger 2 had them the other way round, so it drove toward its LiDAR's back. Fixed 2026-11-23 with ROBOTIS `turtlebot3_setup_motor` (OpenCR core 1.5.3 via `arduino-cli`, one motor connected at a time; a read-only scan option was added to the sketch): ID 1 = drive mode 0, ID 2 = drive mode 1, 1 Mbps, velocity mode. Then the Burger firmware was re-flashed from the Pi (`~/opencr_update/update.sh /dev/ttyACM0 burger.opencr`, V230127R1). Check after any motor work: put a box in front of the LiDAR (0°), drive 10 cm forward, the box must get 10 cm closer. Burger 2 passed (0.510 → 0.408 m). Open question: with the caster leading, the LiDAR sits ~3 cm ahead of the wheel axle instead of behind it, the opposite of the `-0.032 m` mount offset in the V3 profile. The two robots use different domain IDs so a `/cmd_vel` meant for one never moves the other; each runs its own bridge and talks to CyberScape over HTTP. `sudo` on the robots needs the password (not stored here).
+**Both Burgers drive ball-first** (the caster leads, the camera on Burger 1 faces the caster side, the LiDAR's 0° faces the caster side). That is the reverse of the stock TurtleBot3 and of the simulation, where the caster trails; it is consistent within each robot, so missions work. Seen from the caster side, the motors must be **ID 2 on your left, ID 1 on your right** on both robots. Burger 2 had them the other way round, so it drove toward its LiDAR's back. Fixed 2026-11-23 with ROBOTIS `turtlebot3_setup_motor` (OpenCR core 1.5.3 via `arduino-cli`, one motor connected at a time; a read-only scan option was added to the sketch): ID 1 = drive mode 0, ID 2 = drive mode 1, 1 Mbps, velocity mode. Then the Burger firmware was re-flashed from the Pi (`~/opencr_update/update.sh /dev/ttyACM0 burger.opencr`, V230127R1). Check after any motor work: put a box in front of the LiDAR (0°), drive 10 cm forward, the box must get 10 cm closer. Burger 2 passed (0.510 → 0.408 m). With the caster leading, the LiDAR sits ~3 cm ahead of the wheel axle instead of behind it: `lidar_sectors.REAL_MOUNT_M` (see "Hardware PC: next steps"). The two robots use different domain IDs so a `/cmd_vel` meant for one never moves the other; each runs its own bridge and talks to CyberScape over HTTP. `sudo` on the robots needs the password (not stored here).
 | PuppyPi | 192.168.137.136 |
 
 - **Mac server:** `cd ~/tb3-rl-nav && source .venv/bin/activate && python3 hitl-comm-server.py`

@@ -91,13 +91,17 @@ class RosPointNavLidarEnv(RosPointNavEnv):
                                    "(is the LiDAR running? check `ros2 topic hz /scan`).")
             time.sleep(0.02)
 
+    def _sector_ranges(self, scan: LaserScan):
+        """The ranges the sectors are computed from (MAPPO adds the teammate here)."""
+        return scan.ranges
+
     def _lidar_values(self) -> list[float]:
         with self._scan_lock:
             scan = self._scan
         if scan is None:
             raise RuntimeError(f"No LiDAR scan received on {SCAN_TOPIC} yet.")
         values, diag = sim_matched_sectors(
-            scan.ranges, scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max,
+            self._sector_ranges(scan), scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max,
             self._previous_clearance_m, profile=self.lidar_profile,
         )
         self._previous_clearance_m = diag["clearance_m"]

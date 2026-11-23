@@ -48,6 +48,7 @@ from burger_comm_node import complete_phase, get_instruction, report_error, send
 import cyberscape_rl_bridge  # noqa: E402
 from cyberscape_rl_bridge import ALIGN_ABOVE_DEG, ALIGN_UNTIL_DEG, Bridge, plan_commands  # noqa: E402
 from mission_record import MAP_LEGEND, MissionRecorder, new_folder  # noqa: E402
+from lidar_sectors import REAL_MOUNT_M  # noqa: E402
 import numpy as np  # noqa: E402
 from policy_numpy import NumpyPolicy  # noqa: E402
 from route_planner import RESOLUTION_M, RoutePlanner, lookahead, route_length  # noqa: E402
@@ -147,7 +148,7 @@ class PlanningBridge(Bridge):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.planner = RoutePlanner(self.start[:2])
+        self.planner = RoutePlanner(self.start[:2], lidar_mount_m=REAL_MOUNT_M)
         self.route_changes = 0
         self.route_log: list[dict] = []    # mission frame: first route per target + changed routes
         self.target_log: list[tuple[float, float]] = []

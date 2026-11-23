@@ -22,7 +22,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 
-LIDAR_MOUNT_M = (-0.032, 0.0)   # TurtleBot3 Burger base_scan in base_link
+LIDAR_MOUNT_M = (-0.032, 0.0)   # stock Burger base_scan in base_link (sim); the hardware passes its own
 RESOLUTION_M = 0.05
 HALF_SIZE_M = 4.0               # map covers +-4 m around where it was created
 MAX_RANGE_M = 2.5               # ignore far returns (noisy, irrelevant for short legs)
@@ -35,8 +35,10 @@ SOFT_COST = 4.0
 
 
 class RoutePlanner:
-    def __init__(self, center_xy: tuple[float, float]) -> None:
+    def __init__(self, center_xy: tuple[float, float],
+                 lidar_mount_m: tuple[float, float] = LIDAR_MOUNT_M) -> None:
         self.cx, self.cy = center_xy
+        self.lidar_mount_m = lidar_mount_m
         self.n = int(round(2 * HALF_SIZE_M / RESOLUTION_M))
         self.evidence = np.zeros((self.n, self.n), dtype=np.int8)
         self._inflate_cells = int(math.ceil((ROBOT_RADIUS_M + MARGIN_M) / RESOLUTION_M))
@@ -60,7 +62,8 @@ class RoutePlanner:
         """Draw one LaserScan, taken at robot pose (x, y, yaw) in the odometry frame."""
         x, y, yaw = pose
         c, s = math.cos(yaw), math.sin(yaw)
-        sx, sy = x + c * LIDAR_MOUNT_M[0] - s * LIDAR_MOUNT_M[1], y + s * LIDAR_MOUNT_M[0] + c * LIDAR_MOUNT_M[1]
+        mx, my = self.lidar_mount_m
+        sx, sy = x + c * mx - s * my, y + s * mx + c * my
         origin = self.to_cell(sx, sy)
         for i, r in enumerate(ranges):
             if math.isnan(r) or r <= 0.0 or r < range_min:
