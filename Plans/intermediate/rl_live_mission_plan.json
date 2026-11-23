@@ -1,0 +1,39 @@
+{
+    "turtlebot3_plan": {
+        "target": "TURTLEBOT3",
+        "phases": [
+            {
+                "target": "TURTLEBOT3",
+                "phase_number": 1,
+                "state": "The TurtleBot3 is at the base coordinates (0.0, 0.0), facing the positive x-axis. It is prepared for a search and rescue mission in a partially collapsed room with active LiDAR and camera.",
+                "phase_target": "Navigate to the first survivor location, maneuvering around debris.",
+                "inputs": [],
+                "outputs": []
+            },
+            {
+                "target": "TURTLEBOT3",
+                "phase_number": 2,
+                "state": "TurtleBot3 has reached coordinates (1.5, 0.75) and is scanning the area with LiDAR for a clear path.",
+                "phase_target": "Detect and confirm the first survivor, then report to APM.",
+                "inputs": [],
+                "outputs": []
+            },
+            {
+                "target": "TURTLEBOT3",
+                "phase_number": 3,
+                "state": "The first survivor has been located, and TurtleBot3 is moving towards the second reported position at (1.5, -0.75).",
+                "phase_target": "Arrive at the second survivor location and perform a confirmation scan.",
+                "inputs": [],
+                "outputs": []
+            },
+            {
+                "target": "TURTLEBOT3",
+                "phase_number": 4,
+                "state": "Both survivors have been successfully located, and TurtleBot3 is positioned at (1.5, -0.75).",
+                "phase_target": "Rotate to face the room and inform APM of the search completion.",
+                "inputs": [],
+                "outputs": []
+            }
+        ]
+    }
+}

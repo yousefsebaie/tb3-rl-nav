@@ -1,0 +1,123 @@
+# MAPPO deterministic evaluations (from the gitignored *.log files on the sim PC, 2026-11-23)
+# bench = benchmark_config(): crossing / head-on / random encounters with scattered boxes, 100 episodes
+# solo  = solo_passage_config(): robot 0 alone through a doorway or corridor, robot 1 parked; 30 episodes
+# team_success = both robots reached; episode_collision = any contact; robot_success = per robot
+
+== eval_bench_v4_copies
+EVAL 100 episodes: team_success=0.570 episode_collision=0.230 robot_success=0.720 robot_robot_collision=0.060
+EVAL encounter=crossing episodes=50 team_success=0.580 collision=0.140
+EVAL encounter=head_on episodes=30 team_success=0.433 collision=0.367
+EVAL encounter=random episodes=20 team_success=0.750 collision=0.250
+
+== eval_bench_tm_best
+EVAL 100 episodes: team_success=0.620 episode_collision=0.200 robot_success=0.740 robot_robot_collision=0.020
+EVAL encounter=crossing episodes=38 team_success=0.658 collision=0.105
+EVAL encounter=head_on episodes=39 team_success=0.538 collision=0.231
+EVAL encounter=random episodes=23 team_success=0.696 collision=0.304
+
+== eval_bench_v5_kl02
+EVAL 100 episodes: team_success=0.640 episode_collision=0.170 robot_success=0.775 robot_robot_collision=0.040 invalid_sector_reads=19844
+EVAL encounter=crossing episodes=40 team_success=0.625 collision=0.125
+EVAL encounter=head_on episodes=47 team_success=0.638 collision=0.170
+EVAL encounter=random episodes=13 team_success=0.692 collision=0.308
+
+== eval_bench_v5_kl05
+EVAL 100 episodes: team_success=0.720 episode_collision=0.150 robot_success=0.810 robot_robot_collision=0.040 invalid_sector_reads=17898
+EVAL encounter=crossing episodes=40 team_success=0.700 collision=0.100
+EVAL encounter=head_on episodes=40 team_success=0.700 collision=0.175
+EVAL encounter=random episodes=20 team_success=0.800 collision=0.200
+
+== eval_bench_v5_kl05_gap
+EVAL 100 episodes: team_success=0.680 episode_collision=0.120 robot_success=0.795 robot_robot_collision=0.040 invalid_sector_reads=8354 gap_handovers=53
+EVAL encounter=crossing episodes=54 team_success=0.593 collision=0.148
+EVAL encounter=head_on episodes=28 team_success=0.714 collision=0.071
+EVAL encounter=random episodes=18 team_success=0.889 collision=0.111
+
+== eval_bench_v4_copies_seed4000
+EVAL 100 episodes: team_success=0.570 episode_collision=0.150 robot_success=0.730 robot_robot_collision=0.040 invalid_sector_reads=6990
+EVAL encounter=crossing episodes=38 team_success=0.500 collision=0.158
+EVAL encounter=head_on episodes=41 team_success=0.463 collision=0.171
+EVAL encounter=random episodes=21 team_success=0.905 collision=0.095
+
+== eval_bench_tm_seed4000
+EVAL 100 episodes: team_success=0.640 episode_collision=0.190 robot_success=0.750 robot_robot_collision=0.090 invalid_sector_reads=4462
+EVAL encounter=crossing episodes=41 team_success=0.732 collision=0.049
+EVAL encounter=head_on episodes=39 team_success=0.538 collision=0.282
+EVAL encounter=random episodes=20 team_success=0.650 collision=0.300
+
+== eval_bench_v5_kl05_seed4000
+EVAL 100 episodes: team_success=0.560 episode_collision=0.220 robot_success=0.705 robot_robot_collision=0.100 invalid_sector_reads=28263
+EVAL encounter=crossing episodes=43 team_success=0.512 collision=0.140
+EVAL encounter=head_on episodes=39 team_success=0.538 collision=0.308
+EVAL encounter=random episodes=18 team_success=0.722 collision=0.222
+
+== solo_v4_rulecount
+EVAL 30 episodes: team_success=0.000 episode_collision=0.067 robot_success=0.500 robot_robot_collision=0.000 invalid_sector_reads=3290
+EVAL encounter=doorway episodes=16 team_success=0.000 collision=0.125
+EVAL encounter=head_on_corridor episodes=14 team_success=0.000 collision=0.000
+
+== solo_v5kl05_gap
+EVAL 30 episodes: team_success=0.467 episode_collision=0.000 robot_success=0.733 robot_robot_collision=0.000 invalid_sector_reads=13903 gap_handovers=41
+EVAL encounter=doorway episodes=20 team_success=0.450 collision=0.000
+EVAL encounter=head_on_corridor episodes=10 team_success=0.500 collision=0.000
+
+== solo_v5kl05_gap3
+EVAL 30 episodes: team_success=0.467 episode_collision=0.100 robot_success=0.733 robot_robot_collision=0.000 invalid_sector_reads=4981 gap_handovers=33
+EVAL encounter=doorway episodes=14 team_success=0.429 collision=0.000
+EVAL encounter=head_on_corridor episodes=16 team_success=0.500 collision=0.188
+
+== mission disaster_hard1
+[CYBERSCAPE_MAPPO] phase 1 steps=205 sim_s=108 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2 steps=72 sim_s=44 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3 steps=96 sim_s=57 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 4 steps=78 sim_s=43 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 5 steps=85 sim_s=45 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 6 steps=196 sim_s=97 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] MISSION COMPLETE phases_ok=7 survivors_found=4
+
+== mission disaster_hard2
+[CYBERSCAPE_MAPPO] phase 1 steps=188 sim_s=98 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2 steps=67 sim_s=41 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3 steps=98 sim_s=58 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 4 steps=88 sim_s=48 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 5 steps=75 sim_s=41 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 6 steps=231 sim_s=113 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] MISSION COMPLETE phases_ok=7 survivors_found=4
+
+== mission disaster_test1
+[CYBERSCAPE_MAPPO] phase 1 steps=220 sim_s=135 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2 steps=212 sim_s=111 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3 steps=99 sim_s=57 TurtleBot3_1=SUCCESS
+[CYBERSCAPE_MAPPO] phase 4 steps=83 sim_s=48 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] MISSION COMPLETE phases_ok=4 survivors_found=3
+
+== mission disaster_test2
+[CYBERSCAPE_MAPPO] phase 1 steps=231 sim_s=140 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2 steps=270 sim_s=136 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3 steps=114 sim_s=65 TurtleBot3_1=SUCCESS
+[CYBERSCAPE_MAPPO] phase 4 steps=79 sim_s=46 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] MISSION COMPLETE phases_ok=4 survivors_found=3
+
+== mission mission_test1
+[CYBERSCAPE_MAPPO] phase 1 steps=281 sim_s=159 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2 steps=86 sim_s=49 TurtleBot3_1=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3 steps=232 sim_s=134 TurtleBot3_1=COLLISION TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] MISSION FAILED phases_ok=2
+
+== mission mission_test2
+[CYBERSCAPE_MAPPO] phase 1 steps=274 sim_s=157 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2 steps=81 sim_s=47 TurtleBot3_1=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3 steps=180 sim_s=112 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] MISSION COMPLETE phases_ok=4
+
+== mission live LLM plan (CyberScape planned TURTLEBOT3_1 + TURTLEBOT3_2 from mission_files/rl_mappo_disaster_mission.txt, approved in the dashboard, 2026-11-23)
+[CYBERSCAPE_MAPPO] phase 1 steps=184 sim_s=96 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 1: TurtleBot3_2.detect_with_camera('survivor') -> SURVIVOR DETECTED at (-0.50, 1.10), 0.50 m away (1/4 found)
+[CYBERSCAPE_MAPPO] phase 2 steps=37 sim_s=22 TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 2: TurtleBot3_1.detect_with_camera('survivor') -> SURVIVOR DETECTED at (-3.70, 0.90), 1.44 m away (2/4 found)
+[CYBERSCAPE_MAPPO] phase 2: TurtleBot3_2.detect_with_camera('survivor') -> SURVIVOR DETECTED at (-0.50, 1.10), 1.05 m away (2/4 found)
+[CYBERSCAPE_MAPPO] phase 3 steps=82 sim_s=49 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 3: TurtleBot3_2.detect_with_camera('survivor') -> SURVIVOR DETECTED at (-0.95, -0.95), 0.63 m away (3/4 found)
+[CYBERSCAPE_MAPPO] phase 4 steps=99 sim_s=57 TurtleBot3_1=SUCCESS TurtleBot3_2=SUCCESS
+[CYBERSCAPE_MAPPO] phase 5: TurtleBot3_1.detect_with_camera('survivor') -> SURVIVOR DETECTED at (-3.45, -0.95), 0.65 m away (4/4 found)
+MAPPO mission complete

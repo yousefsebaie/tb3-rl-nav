@@ -1,0 +1,130 @@
+{"event": "mission_start", "sim_s": 0.0, "sim_abs_s": 1.5500000808387995, "wall_s": 6.692949682474136e-06, "tasks": ["t00 TurtleBot3.move_to_point((1.5, 0.75))", "t01 TurtleBot3.scan_with_lidar()", "t02 TurtleBot3.detect_with_camera('survivor')", "t03 TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')", "t04 TurtleBot3.move_to_point((1.5, -0.75))", "t05 TurtleBot3.scan_with_lidar()", "t06 TurtleBot3.detect_with_camera('survivor')", "t07 TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')", "t08 TurtleBot3.move_to_point((0.0, 0.0))", "t09 TurtleBot3.communicate_with_apm('back at base, search complete')"], "scenario": "disaster", "spin_guard": true, "sensor_noise": false, "model": "checkpoint_1570000_steps.zip", "plan": "rl_disaster_burger_plan.json", "replan": false, "throttle": 1.0}
+{"event": "task_start", "sim_s": 0.0, "sim_abs_s": 1.5500000808387995, "wall_s": 0.000642373925074935, "task": "t00 TurtleBot3.move_to_point((1.5, 0.75))", "robot": "turtlebot3"}
+{"event": "goal_alignment", "sim_s": 0.10000000521540642, "sim_abs_s": 1.650000086054206, "wall_s": 0.067278150934726}
+{"event": "spin_guard_override", "sim_s": 4.800000250339508, "sim_abs_s": 6.3500003311783075, "wall_s": 3.532406846061349}
+{"event": "spin_guard_override", "sim_s": 5.183333603665233, "sim_abs_s": 6.733333684504032, "wall_s": 3.8204625388607383}
+{"event": "stall_recovery", "sim_s": 9.266667149960995, "sim_abs_s": 10.816667230799794, "wall_s": 6.684751312946901}
+{"event": "spin_guard_override", "sim_s": 15.400000803172588, "sim_abs_s": 16.950000884011388, "wall_s": 10.812176486942917}
+{"event": "spin_guard_override", "sim_s": 19.100000996142626, "sim_abs_s": 20.650001076981425, "wall_s": 13.450182650936767}
+{"event": "spin_guard_override", "sim_s": 19.48333434946835, "sim_abs_s": 21.03333443030715, "wall_s": 13.712585973087698}
+{"event": "stall_recovery", "sim_s": 46.61666909791529, "sim_abs_s": 48.16666917875409, "wall_s": 32.65420479304157}
+{"event": "task_complete", "sim_s": 119.58333957009017, "sim_abs_s": 121.13333965092897, "wall_s": 83.42327829892747, "task": "t00 TurtleBot3.move_to_point((1.5, 0.75))", "robot": "turtlebot3", "result": "arrived"}
+{"event": "task_start", "sim_s": 119.58333957009017, "sim_abs_s": 121.13333965092897, "wall_s": 83.43285845406353, "task": "t01 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 119.58333957009017, "sim_abs_s": 121.13333965092897, "wall_s": 83.43413330498151, "task": "t01 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3", "result": "scan: front=0.71 m left=2.09 m right=0.53 m"}
+{"event": "task_start", "sim_s": 119.58333957009017, "sim_abs_s": 121.13333965092897, "wall_s": 83.43476953497157, "task": "t02 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3"}
+{"event": "survivor_found", "sim_s": 123.90000646188855, "sim_abs_s": 125.45000654272735, "wall_s": 86.49086540797725}
+{"event": "task_complete", "sim_s": 123.90000646188855, "sim_abs_s": 125.45000654272735, "wall_s": 86.4911310209427, "task": "t02 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3", "result": "SURVIVOR DETECTED at (2.45, 1.20), 1.03 m away (1/2 found)"}
+{"event": "task_start", "sim_s": 123.90000646188855, "sim_abs_s": 125.45000654272735, "wall_s": 86.5006231549196, "task": "t03 TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 124.40000648796558, "sim_abs_s": 125.95000656880438, "wall_s": 86.82629325496964, "task": "t03 TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')", "robot": "turtlebot3", "result": "simulated; report to APM: 1/2 survivors located: #1 at (2.45, 1.20)"}
+{"event": "task_start", "sim_s": 124.40000648796558, "sim_abs_s": 125.95000656880438, "wall_s": 86.8359638939146, "task": "t04 TurtleBot3.move_to_point((1.5, -0.75))", "robot": "turtlebot3"}
+{"event": "goal_alignment", "sim_s": 124.50000649318099, "sim_abs_s": 126.05000657401979, "wall_s": 86.90588499396108}
+{"event": "person_safety_override", "sim_s": 143.03334079310298, "sim_abs_s": 144.58334087394178, "wall_s": 99.91913871490397}
+{"event": "stall_recovery", "sim_s": 170.53334222733974, "sim_abs_s": 172.08334230817854, "wall_s": 119.22554988600314}
+{"event": "task_complete", "sim_s": 230.83334537222981, "sim_abs_s": 232.3833454530686, "wall_s": 161.521851263009, "task": "t04 TurtleBot3.move_to_point((1.5, -0.75))", "robot": "turtlebot3", "result": "arrived"}
+{"event": "task_start", "sim_s": 230.83334537222981, "sim_abs_s": 232.3833454530686, "wall_s": 161.53151682391763, "task": "t05 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 230.83334537222981, "sim_abs_s": 232.3833454530686, "wall_s": 161.53488817694597, "task": "t05 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3", "result": "scan: front=0.60 m left=1.25 m right=0.61 m"}
+{"event": "task_start", "sim_s": 230.83334537222981, "sim_abs_s": 232.3833454530686, "wall_s": 161.53552495199256, "task": "t06 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3"}
+{"event": "survivor_found", "sim_s": 232.46667879074812, "sim_abs_s": 234.01667887158692, "wall_s": 162.6513768909499}
+{"event": "task_complete", "sim_s": 232.46667879074812, "sim_abs_s": 234.01667887158692, "wall_s": 162.6516348628793, "task": "t06 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3", "result": "SURVIVOR DETECTED at (1.00, -1.30), 0.78 m away (2/2 found)"}
+{"event": "task_start", "sim_s": 232.46667879074812, "sim_abs_s": 234.01667887158692, "wall_s": 162.66112658497877, "task": "t07 TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 232.96667881682515, "sim_abs_s": 234.51667889766395, "wall_s": 163.00798270199448, "task": "t07 TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')", "robot": "turtlebot3", "result": "simulated; report to APM: 2/2 survivors located: #1 at (2.45, 1.20); #2 at (1.00, -1.30)"}
+{"event": "task_start", "sim_s": 232.96667881682515, "sim_abs_s": 234.51667889766395, "wall_s": 163.01751363207586, "task": "t08 TurtleBot3.move_to_point((0.0, 0.0))", "robot": "turtlebot3"}
+{"event": "goal_alignment", "sim_s": 233.06667882204056, "sim_abs_s": 234.61667890287936, "wall_s": 163.09356001904234}
+{"event": "person_safety_override", "sim_s": 241.4500125925988, "sim_abs_s": 243.0000126734376, "wall_s": 168.83952633291483}
+{"event": "person_safety_override", "sim_s": 242.21667929925025, "sim_abs_s": 243.76667938008904, "wall_s": 169.41464480687864}
+{"event": "person_safety_override", "sim_s": 242.60001265257597, "sim_abs_s": 244.15001273341477, "wall_s": 169.69602523790672}
+{"event": "person_safety_override", "sim_s": 243.75001271255314, "sim_abs_s": 245.30001279339194, "wall_s": 170.52343589998782}
+{"event": "person_safety_override", "sim_s": 244.13334606587887, "sim_abs_s": 245.68334614671767, "wall_s": 170.77756746602245}
+{"event": "stall_recovery", "sim_s": 244.5166794192046, "sim_abs_s": 246.0666795000434, "wall_s": 171.0556105079595}
+{"event": "person_safety_override", "sim_s": 256.38334670476615, "sim_abs_s": 257.93334678560495, "wall_s": 179.33052984601818}
+{"event": "person_safety_override", "sim_s": 257.1500134114176, "sim_abs_s": 258.7000134922564, "wall_s": 179.8633472030051}
+{"event": "person_safety_override", "sim_s": 257.91668011806905, "sim_abs_s": 259.46668019890785, "wall_s": 180.396454337053}
+{"event": "person_safety_override", "sim_s": 258.6833468247205, "sim_abs_s": 260.2333469055593, "wall_s": 180.9432138679549}
+{"event": "person_safety_override", "sim_s": 259.45001353137195, "sim_abs_s": 261.00001361221075, "wall_s": 181.46449585887603}
+{"event": "stall_recovery", "sim_s": 259.8333468846977, "sim_abs_s": 261.3833469655365, "wall_s": 181.72871255595237}
+{"event": "person_safety_override", "sim_s": 265.0166804883629, "sim_abs_s": 266.5666805692017, "wall_s": 185.4321847150568}
+{"event": "person_safety_override", "sim_s": 265.50001384690404, "sim_abs_s": 267.05001392774284, "wall_s": 185.7817023009993}
+{"event": "person_safety_override", "sim_s": 265.98334720544517, "sim_abs_s": 267.53334728628397, "wall_s": 186.1242508678697}
+{"event": "person_safety_override", "sim_s": 270.58334744535387, "sim_abs_s": 272.13334752619267, "wall_s": 189.42655961588025}
+{"event": "person_safety_override", "sim_s": 271.3500141520053, "sim_abs_s": 272.9000142328441, "wall_s": 189.92303812806495}
+{"event": "person_safety_override", "sim_s": 272.11668085865676, "sim_abs_s": 273.66668093949556, "wall_s": 190.4594500688836}
+{"event": "person_safety_override", "sim_s": 272.8833475653082, "sim_abs_s": 274.433347646147, "wall_s": 191.0069250660017}
+{"event": "person_safety_override", "sim_s": 273.65001427195966, "sim_abs_s": 275.20001435279846, "wall_s": 191.58024900290184}
+{"event": "person_safety_override", "sim_s": 274.4166809786111, "sim_abs_s": 275.9666810594499, "wall_s": 192.14813380292617}
+{"event": "person_safety_override", "sim_s": 275.18334768526256, "sim_abs_s": 276.73334776610136, "wall_s": 192.664810864022}
+{"event": "person_safety_override", "sim_s": 275.950014391914, "sim_abs_s": 277.5000144727528, "wall_s": 193.22543761087582}
+{"event": "stall_recovery", "sim_s": 276.33334774523973, "sim_abs_s": 277.88334782607853, "wall_s": 193.48976621893235}
+{"event": "person_safety_override", "sim_s": 281.51668134890497, "sim_abs_s": 283.06668142974377, "wall_s": 197.1458995139692}
+{"event": "person_safety_override", "sim_s": 282.0000147074461, "sim_abs_s": 283.5500147882849, "wall_s": 197.48750499403104}
+{"event": "person_safety_override", "sim_s": 282.48334806598723, "sim_abs_s": 284.03334814682603, "wall_s": 197.7953787969891}
+{"event": "person_safety_override", "sim_s": 282.96668142452836, "sim_abs_s": 284.51668150536716, "wall_s": 198.13956980593503}
+{"event": "person_safety_override", "sim_s": 287.21668164618313, "sim_abs_s": 288.76668172702193, "wall_s": 201.05103642307222}
+{"event": "person_safety_override", "sim_s": 287.9833483528346, "sim_abs_s": 289.5333484336734, "wall_s": 201.60694164107554}
+{"event": "person_safety_override", "sim_s": 288.75001505948603, "sim_abs_s": 290.30001514032483, "wall_s": 202.11158378096297}
+{"event": "person_safety_override", "sim_s": 289.5166817661375, "sim_abs_s": 291.0666818469763, "wall_s": 202.66035779193044}
+{"event": "person_safety_override", "sim_s": 290.28334847278893, "sim_abs_s": 291.83334855362773, "wall_s": 203.21820787992328}
+{"event": "person_safety_override", "sim_s": 291.0500151794404, "sim_abs_s": 292.6000152602792, "wall_s": 203.76251226104796}
+{"event": "person_safety_override", "sim_s": 291.8166818860918, "sim_abs_s": 293.3666819669306, "wall_s": 204.28842813987285}
+{"event": "person_safety_override", "sim_s": 292.20001523941755, "sim_abs_s": 293.75001532025635, "wall_s": 204.54669319908135}
+{"event": "stall_recovery", "sim_s": 292.5833485927433, "sim_abs_s": 294.1333486735821, "wall_s": 204.81289067002945}
+{"event": "person_safety_override", "sim_s": 297.3833488430828, "sim_abs_s": 298.9333489239216, "wall_s": 208.32167660305277}
+{"event": "person_safety_override", "sim_s": 297.8666822016239, "sim_abs_s": 299.4166822824627, "wall_s": 208.65507695288397}
+{"event": "person_safety_override", "sim_s": 298.35001556016505, "sim_abs_s": 299.90001564100385, "wall_s": 208.97976407408714}
+{"event": "person_safety_override", "sim_s": 301.23334904387593, "sim_abs_s": 302.78334912471473, "wall_s": 210.87958934903145}
+{"event": "spin_guard_override", "sim_s": 304.68334922380745, "sim_abs_s": 306.23334930464625, "wall_s": 213.16917611798272}
+{"event": "spin_guard_override", "sim_s": 305.0666825771332, "sim_abs_s": 306.616682657972, "wall_s": 213.43914933106862}
+{"event": "spin_guard_override", "sim_s": 305.4500159304589, "sim_abs_s": 307.0000160112977, "wall_s": 213.72130400198512}
+{"event": "spin_guard_override", "sim_s": 305.8333492837846, "sim_abs_s": 307.3833493646234, "wall_s": 214.0141808600165}
+{"event": "spin_guard_override", "sim_s": 306.21668263711035, "sim_abs_s": 307.76668271794915, "wall_s": 214.28964963299222}
+{"event": "stall_recovery", "sim_s": 306.6000159904361, "sim_abs_s": 308.1500160712749, "wall_s": 214.540097061079}
+{"event": "person_safety_override", "sim_s": 312.55001630075276, "sim_abs_s": 314.10001638159156, "wall_s": 218.74355606897734}
+{"event": "person_safety_override", "sim_s": 313.0333496592939, "sim_abs_s": 314.5833497401327, "wall_s": 219.07263108203188}
+{"event": "person_safety_override", "sim_s": 313.516683017835, "sim_abs_s": 315.0666830986738, "wall_s": 219.38586527993903}
+{"event": "spin_guard_override", "sim_s": 314.10001638159156, "sim_abs_s": 315.65001646243036, "wall_s": 219.8072168440558}
+{"event": "spin_guard_override", "sim_s": 314.4833497349173, "sim_abs_s": 316.0333498157561, "wall_s": 220.08882665494457}
+{"event": "spin_guard_override", "sim_s": 314.866683088243, "sim_abs_s": 316.4166831690818, "wall_s": 220.3554094650317}
+{"event": "spin_guard_override", "sim_s": 315.25001644156873, "sim_abs_s": 316.80001652240753, "wall_s": 220.6181011039298}
+{"event": "spin_guard_override", "sim_s": 315.63334979489446, "sim_abs_s": 317.18334987573326, "wall_s": 220.88556895498186}
+{"event": "spin_guard_override", "sim_s": 316.4000165015459, "sim_abs_s": 317.9500165823847, "wall_s": 221.45862661185674}
+{"event": "spin_guard_override", "sim_s": 317.16668320819736, "sim_abs_s": 318.71668328903615, "wall_s": 222.00773410289548}
+{"event": "spin_guard_override", "sim_s": 317.9333499148488, "sim_abs_s": 319.4833499956876, "wall_s": 222.53441140707582}
+{"event": "spin_guard_override", "sim_s": 318.70001662150025, "sim_abs_s": 320.25001670233905, "wall_s": 223.07033363403752}
+{"event": "spin_guard_override", "sim_s": 319.4666833281517, "sim_abs_s": 321.0166834089905, "wall_s": 223.63472567987628}
+{"event": "spin_guard_override", "sim_s": 320.23335003480315, "sim_abs_s": 321.78335011564195, "wall_s": 224.17242983495817}
+{"event": "spin_guard_override", "sim_s": 321.0000167414546, "sim_abs_s": 322.5500168222934, "wall_s": 224.73220162186772}
+{"event": "stall_recovery", "sim_s": 321.76668344810605, "sim_abs_s": 323.31668352894485, "wall_s": 225.28629975789227}
+{"event": "person_safety_override", "sim_s": 324.2666835784912, "sim_abs_s": 325.81668365933, "wall_s": 227.08413024200127}
+{"event": "person_safety_override", "sim_s": 324.75001693703234, "sim_abs_s": 326.30001701787114, "wall_s": 227.39145125402138}
+{"event": "spin_guard_override", "sim_s": 325.3333503007889, "sim_abs_s": 326.8833503816277, "wall_s": 227.78510801494122}
+{"event": "spin_guard_override", "sim_s": 325.7166836541146, "sim_abs_s": 327.2666837349534, "wall_s": 228.0785611050669}
+{"event": "spin_guard_override", "sim_s": 326.10001700744033, "sim_abs_s": 327.6500170882791, "wall_s": 228.33806492993608}
+{"event": "spin_guard_override", "sim_s": 326.48335036076605, "sim_abs_s": 328.03335044160485, "wall_s": 228.59687424195}
+{"event": "spin_guard_override", "sim_s": 326.8666837140918, "sim_abs_s": 328.4166837949306, "wall_s": 228.8623902720865}
+{"event": "spin_guard_override", "sim_s": 327.6333504207432, "sim_abs_s": 329.183350501582, "wall_s": 229.44213456707075}
+{"event": "spin_guard_override", "sim_s": 328.4000171273947, "sim_abs_s": 329.9500172082335, "wall_s": 230.00311147491448}
+{"event": "spin_guard_override", "sim_s": 329.1666838340461, "sim_abs_s": 330.7166839148849, "wall_s": 230.56349157495424}
+{"event": "spin_guard_override", "sim_s": 329.9333505406976, "sim_abs_s": 331.4833506215364, "wall_s": 231.09383153403178}
+{"event": "spin_guard_override", "sim_s": 330.700017247349, "sim_abs_s": 332.2500173281878, "wall_s": 231.57693422795273}
+{"event": "spin_guard_override", "sim_s": 331.4666839540005, "sim_abs_s": 333.0166840348393, "wall_s": 232.1096142688766}
+{"event": "spin_guard_override", "sim_s": 332.2333506606519, "sim_abs_s": 333.7833507414907, "wall_s": 232.59986240090802}
+{"event": "stall_recovery", "sim_s": 333.00001736730337, "sim_abs_s": 334.55001744814217, "wall_s": 233.09471718594432}
+{"event": "spin_guard_override", "sim_s": 340.28335108049214, "sim_abs_s": 341.83335116133094, "wall_s": 238.1748487460427}
+{"event": "spin_guard_override", "sim_s": 343.9833512734622, "sim_abs_s": 345.533351354301, "wall_s": 240.81193065596744}
+{"event": "spin_guard_override", "sim_s": 344.3666846267879, "sim_abs_s": 345.9166847076267, "wall_s": 241.0648669670336}
+{"event": "spin_guard_override", "sim_s": 344.7500179801136, "sim_abs_s": 346.3000180609524, "wall_s": 241.3163448420819}
+{"event": "spin_guard_override", "sim_s": 345.5166846867651, "sim_abs_s": 347.0666847676039, "wall_s": 241.8724709439557}
+{"event": "spin_guard_override", "sim_s": 346.2833513934165, "sim_abs_s": 347.8333514742553, "wall_s": 242.39755739597604}
+{"event": "spin_guard_override", "sim_s": 347.050018100068, "sim_abs_s": 348.6000181809068, "wall_s": 242.9418988248799}
+{"event": "stall_recovery", "sim_s": 347.8166848067194, "sim_abs_s": 349.3666848875582, "wall_s": 243.48866298492067}
+{"event": "spin_guard_override", "sim_s": 355.1000185199082, "sim_abs_s": 356.650018600747, "wall_s": 248.51688975607976}
+{"event": "spin_guard_override", "sim_s": 358.8000187128782, "sim_abs_s": 360.350018793717, "wall_s": 251.09371245489456}
+{"event": "spin_guard_override", "sim_s": 359.18335206620395, "sim_abs_s": 360.73335214704275, "wall_s": 251.3453994160518}
+{"event": "spin_guard_override", "sim_s": 359.5666854195297, "sim_abs_s": 361.1166855003685, "wall_s": 251.59702954092063}
+{"event": "spin_guard_override", "sim_s": 359.9500187728554, "sim_abs_s": 361.5000188536942, "wall_s": 251.84805412194692}
+{"event": "spin_guard_override", "sim_s": 360.71668547950685, "sim_abs_s": 362.26668556034565, "wall_s": 252.37462358386256}
+{"event": "spin_guard_override", "sim_s": 361.4833521861583, "sim_abs_s": 363.0333522669971, "wall_s": 252.94755334896035}
+{"event": "spin_guard_override", "sim_s": 362.25001889280975, "sim_abs_s": 363.80001897364855, "wall_s": 253.50331513187848}
+{"event": "stall_recovery", "sim_s": 362.6333522461355, "sim_abs_s": 364.1833523269743, "wall_s": 253.77438944904134}
+{"event": "spin_guard_override", "sim_s": 370.6833526659757, "sim_abs_s": 372.2333527468145, "wall_s": 259.2651284649037}
+{"event": "task_failed", "sim_s": 375.6500195916742, "sim_abs_s": 377.200019672513, "wall_s": 262.7208130499348, "task": "t08 TurtleBot3.move_to_point((0.0, 0.0))", "reason": "collision after 14 RL steps"}
+{"event": "mission_end", "sim_s": 375.6500195916742, "sim_abs_s": 377.200019672513, "wall_s": 262.7208367639687, "status": "collision", "reason": "collision after 14 RL steps"}

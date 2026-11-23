@@ -1,0 +1,77 @@
+{
+    "target": "MULTI_TURTLEBOT",
+    "phases": [
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 1,
+            "state": "Earthquake: both TurtleBot3 Burgers at the responder base. TurtleBot3_1 at (-2.75, 1.85), TurtleBot3_2 at (-1.85, 1.85).",
+            "phase_target": "Search the east sector: drive to (-1.1, 0.55), confirm the reported survivor with the camera and report. The route crosses TurtleBot3_2's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-1.1, 0.55))\nTurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('survivor found in the east sector')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 1,
+            "state": "TurtleBot3_2 at the responder base (-1.85, 1.85).",
+            "phase_target": "Search the west sector: drive to (-3.2, 0.55), confirm the reported survivor with the camera and report. The route crosses TurtleBot3_1's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-3.2, 0.55))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')\nTurtleBot3_2.communicate_with_apm('survivor found in the west sector')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 2,
+            "state": "TurtleBot3_1 in the east sector, survivor marked.",
+            "phase_target": "Drive to the gap in the collapsed wall at (-2.3, 0.55).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-2.3, 0.55))\nTurtleBot3_1.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 2,
+            "state": "TurtleBot3_2 in the west sector, survivor marked.",
+            "phase_target": "Return to the responder base at (-1.85, 1.85) and hand over both survivor positions.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.85, 1.85))\nTurtleBot3_2.communicate_with_apm('two survivor positions handed to the rescue team')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 3,
+            "state": "TurtleBot3_1 in front of the 0.8 m gap in the collapsed wall.",
+            "phase_target": "Enter the collapsed wing through the gap, drive to (-2.3, -0.85) and look for trapped people.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-2.3, -0.85))\nTurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('survivor found in the collapsed wing')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 3,
+            "state": "TurtleBot3_2 at the responder base.",
+            "phase_target": "Hold at the base and keep the link to the operator.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 4,
+            "state": "TurtleBot3_1 in the collapsed wing next to the third survivor.",
+            "phase_target": "Stay with the survivor and guide the rescue team.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.communicate_with_apm('staying with survivor 3 in the collapsed wing')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 4,
+            "state": "TurtleBot3_2 at the responder base, TurtleBot3_1 out of direct radio range behind the wall.",
+            "phase_target": "Drive to the relay point in front of the wall gap at (-2.3, 0.75) to relay TurtleBot3_1's radio link, then report the mission complete.",
+            "inputs": [],
+            "outputs": {"mission_status": {"type": "string"}},
+            "low_level_plan": "TurtleBot3_2.move_to_point((-2.3, 0.75))\nTurtleBot3_2.communicate_with_apm('relay in place, 3 survivors located, search complete')"
+        }
+    ]
+}

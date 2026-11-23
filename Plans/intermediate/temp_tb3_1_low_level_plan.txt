@@ -1,0 +1,20 @@
+Phase 1:
+TurtleBot3_1.move_to_point((-2.3, 0.5))
+
+Phase 2:
+TurtleBot3_1.scan_with_lidar()
+TurtleBot3_1.detect_with_camera('survivor')
+TurtleBot3_1.communicate_with_apm('west sector inspection complete')
+
+Phase 3:
+TurtleBot3_1.move_to_point((-3.2, 0.6))
+TurtleBot3_1.move_to_point((-3.0, -0.55))
+
+Phase 4:
+TurtleBot3_1.scan_with_lidar()
+TurtleBot3_1.detect_with_camera('survivor')
+TurtleBot3_1.communicate_with_apm('west room inspection complete')
+
+Phase 5:
+TurtleBot3_1.communicate_with_apm('mission complete')
+

@@ -1,0 +1,128 @@
+{
+  "b0_vs_rule": {
+    "baseline": "b0",
+    "candidate": "rule",
+    "metric": "makespan_sim_s",
+    "scenarios_matched": 20,
+    "scenarios_both_successful": 3,
+    "success_rate": {
+      "b0": 0.35,
+      "rule": 0.25
+    },
+    "collision_rate": {
+      "b0": 0.0,
+      "rule": 0.0
+    },
+    "timeout_rate": {
+      "b0": 0.65,
+      "rule": 0.75
+    },
+    "mean_s": {
+      "b0": 12.899666666666667,
+      "rule": 56.939
+    },
+    "median_s": {
+      "b0": 13.833,
+      "rule": 48.217
+    },
+    "mean_delta_s": -44.03933333333334,
+    "delta_ci95_s": [
+      -75.55000000000001,
+      -22.183999999999997
+    ],
+    "mean_paired_improvement_pct": -328.2170715553585,
+    "paired_improvement_ci95_pct": [
+      -523.4531975334304,
+      -212.63299146937598
+    ],
+    "aggregate_mean_change_pct": -341.39900255820567,
+    "penalized_mean_s": {
+      "b0": 83.00655,
+      "rule": 105.55415
+    }
+  },
+  "b0_vs_ppo": {
+    "baseline": "b0",
+    "candidate": "ppo",
+    "metric": "makespan_sim_s",
+    "scenarios_matched": 20,
+    "scenarios_both_successful": 6,
+    "success_rate": {
+      "b0": 0.35,
+      "ppo": 0.75
+    },
+    "collision_rate": {
+      "b0": 0.0,
+      "ppo": 0.15
+    },
+    "timeout_rate": {
+      "b0": 0.65,
+      "ppo": 0.1
+    },
+    "mean_s": {
+      "b0": 13.566333333333333,
+      "ppo": 45.039
+    },
+    "median_s": {
+      "b0": 13.433,
+      "ppo": 46.3585
+    },
+    "mean_delta_s": -31.472666666666665,
+    "delta_ci95_s": [
+      -41.503166666666665,
+      -21.361666666666665
+    ],
+    "mean_paired_improvement_pct": -226.20699968440616,
+    "paired_improvement_ci95_pct": [
+      -283.17053798605593,
+      -175.3357398788127
+    ],
+    "aggregate_mean_change_pct": -231.9909580087963,
+    "penalized_mean_s": {
+      "b0": 83.00655,
+      "ppo": 78.1184
+    }
+  },
+  "ppo_vs_rule": {
+    "baseline": "ppo",
+    "candidate": "rule",
+    "metric": "makespan_sim_s",
+    "scenarios_matched": 20,
+    "scenarios_both_successful": 5,
+    "success_rate": {
+      "ppo": 0.75,
+      "rule": 0.25
+    },
+    "collision_rate": {
+      "ppo": 0.15,
+      "rule": 0.0
+    },
+    "timeout_rate": {
+      "ppo": 0.1,
+      "rule": 0.75
+    },
+    "mean_s": {
+      "ppo": 54.1568,
+      "rule": 62.2166
+    },
+    "median_s": {
+      "ppo": 46.55,
+      "rule": 66.233
+    },
+    "mean_delta_s": -8.059800000000003,
+    "delta_ci95_s": [
+      -27.789800000000003,
+      13.093599999999995
+    ],
+    "mean_paired_improvement_pct": -24.250279869629345,
+    "paired_improvement_ci95_pct": [
+      -61.94407048256549,
+      11.329816761974254
+    ],
+    "aggregate_mean_change_pct": -14.882341645001187,
+    "penalized_mean_s": {
+      "ppo": 78.1184,
+      "rule": 105.55415
+    }
+  }
+}

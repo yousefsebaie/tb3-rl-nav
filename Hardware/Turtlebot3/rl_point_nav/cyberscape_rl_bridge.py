@@ -40,6 +40,10 @@ except ImportError:  # pragma: no cover - direct-script convenience only
     from config import PointNavAction
     from isaac_point_nav_lidar_env import IsaacPointNavLidarEnv, v3_lidar_config
     from mission_timing import MissionTimer, append_csv
+try:
+    from .route_planner import CAP, HALF_SIZE_M, RESOLUTION_M, RoutePlanner, lookahead, route_length
+except ImportError:  # pragma: no cover - direct-script convenience only
+    from route_planner import CAP, HALF_SIZE_M, RESOLUTION_M, RoutePlanner, lookahead, route_length
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_MODEL = HERE / "models" / "isaac_point_nav_lidar_ppo_v3" / "checkpoint_1000000_steps.zip"
@@ -55,7 +59,17 @@ DEMO_OBSTACLES = ((0.85, 0.62, 0.25), (1.72, 0.0, 0.25), (0.85, -0.62, 0.25))
 #   patrol:   orange boxes, checkpoints A (1.5, 0.75) and B (1.5, -0.75)
 #   disaster: earthquake set dressing (disaster_scene.py): broken concrete blocks, trapped
 #             survivors next to both checkpoints, collapsed ceiling, responder base, dim lights
-SCENARIOS = ("patrol", "disaster")
+#   loop:     replica of the real-robot loop run (hardware commit 490109c, Plans/rl_loop_burger_plan.json):
+#             positions read off that run's LiDAR map (map.png, 0.5 m grid)
+SCENARIOS = ("patrol", "disaster", "loop")
+# (x, y, width, RGB): small cone/spool ahead, cardboard box (left) and white bin (right) with
+# a ~0.6 m gap, and the edge of the room the LiDAR saw on the right (y ~ -1.5, x 1.8-3.3).
+LOOP_OBSTACLES = (
+    (0.60, 0.03, 0.12, (0.93, 0.90, 0.78)),
+    (1.57, 0.56, 0.32, (0.62, 0.43, 0.24)),
+    (1.64, -0.35, 0.30, (0.95, 0.95, 0.95)),
+    *((x, -1.52, 0.30, (0.55, 0.55, 0.58)) for x in (1.95, 2.25, 2.55, 2.85, 3.15)),
+)
 # Survivors (chest x, chest y, body heading deg), ~0.5 m beyond each checkpoint and away
 # from the routes. Bodies are below the LiDAR plane; Bridge.step's person-safety zone
 # blocks any forward move into them.
@@ -112,7 +126,10 @@ class Bridge:
             head = self.to_world(x - 0.42 * c, y - 0.42 * s)
             feet = self.to_world(x + 0.80 * c, y + 0.80 * s)
             self.bodies.append((head, feet))
+        self.path: list[tuple[float, float]] = []
         self.found = set()
+        self.found_log: list[dict] = []   # survivor reports: true position, when, from where
+        self.beacons: list[list[str]] = []   # disaster GUI: hidden marker prims per survivor
         self.safety_active = False
         self.max_goal_radius, self.max_leg = max_goal_radius, max_leg
 
@@ -161,6 +178,7 @@ class Bridge:
         result = self.env.step(int(action))
         if self.timer is not None:
             self.timer.record_pose(result[4]["pose"]["x"], result[4]["pose"]["y"])
+            self.path.append(self.to_mission(result[4]["pose"]["x"], result[4]["pose"]["y"]))
         return result
 
     def count(self, name: str) -> None:
@@ -318,9 +336,30 @@ class Bridge:
         # Far goal in the person's direction keeps the episode active while turning in place.
         self.env.continue_to_goal((state.x + 10 * (wx - state.x), state.y + 10 * (wy - state.y)))
         self.turn_until(math.atan2(wy - state.y, wx - state.x), 10.0)
-        self.found.add(index)
+        if index not in self.found:
+            self.found.add(index)
+            sim_s = None if self.timer is None else round(self.env.sim_time() - self.timer.start_sim, 1)
+            self.found_log.append({"survivor": len(self.found_log) + 1, "x_m": round(px, 2), "y_m": round(py, 2),
+                                   "robot_x_m": round(cx, 2), "robot_y_m": round(cy, 2),
+                                   "distance_m": round(distance, 2), "mission_sim_s": sim_s})
+            if index < len(self.beacons):
+                try:
+                    from .disaster_scene import show_beacon
+                except ImportError:  # pragma: no cover
+                    from disaster_scene import show_beacon
+                show_beacon(self.env._stage, self.beacons[index])
+                self.env.settle_scan(5)
+            self.count("survivor_found")
+            log(f"  survivor #{len(self.found_log)} marked (green beacon) at ({px:.2f}, {py:.2f})"
+                + ("" if sim_s is None else f", {sim_s:.0f} s into the mission"))
         return True, (f"SURVIVOR DETECTED at ({px:.2f}, {py:.2f}), {distance:.2f} m away "
                       f"({len(self.found)}/{len(self.people)} found)")
+
+    def survivor_summary(self) -> str:
+        if not self.found_log:
+            return "no survivors located"
+        return f"{len(self.found_log)}/{len(self.people)} survivors located: " + "; ".join(
+            f"#{f['survivor']} at ({f['x_m']:.2f}, {f['y_m']:.2f})" for f in self.found_log)
 
     def execute(self, line: str) -> tuple[bool, str]:
         action, args = parse_command(line)
@@ -341,6 +380,8 @@ class Bridge:
             return self.detect()
         if action in ("wait_for_signal", "communicate_with_apm", "retrieve_object"):
             self.env.settle_scan(30)
+            if action == "communicate_with_apm" and self.people:
+                return True, f"simulated; report to APM: {self.survivor_summary()}"
             return True, "simulated"
         return True, "not supported in simulation, skipped"
 
@@ -353,6 +394,7 @@ class Bridge:
                                   metadata=dict(self.timing_meta))
         self.timer.start()
         _, cx, cy = self.pose()
+        self.path = [(cx, cy)]   # driven path in the start frame, saved as path.csv like the hardware bridge
         self.timer.record_pose(*self.to_world(cx, cy))
         log(f"timing mission {mission_id}: {len(commands)} tasks, controller {self.controller.name}")
 
@@ -364,6 +406,12 @@ class Bridge:
         row = self.timer.finish(status, reason)
         folder = MISSIONS_DIR / self.timer.mission_id
         self.timer.write_events(folder / "events.jsonl")
+        if self.people:
+            (folder / "survivors.json").write_text(json.dumps(
+                {"located": len(self.found_log), "total": len(self.people), "survivors": self.found_log}, indent=2))
+            log(f"SURVIVOR REPORT: {self.survivor_summary()}")
+        (folder / "path.csv").write_text("step,x_m,y_m\n" + "".join(
+            f"{i},{x:.3f},{y:.3f}\n" for i, (x, y) in enumerate(self.path)))
         append_csv(MISSIONS_DIR / "missions.csv", row)
         log(f"MISSION {row['status']}: makespan {row['makespan_sim_s']} s sim "
             f"(terminated at {row['termination_elapsed_sim_s']} s), wall {row['wall_elapsed_s']} s, RTF {row['rtf']}, "
@@ -400,6 +448,130 @@ class Bridge:
         return ok
 
 
+class PlanningBridge(Bridge):
+    """--replan: the real robot's route layer (hardware_rl_bridge.PlanningBridge) in simulation.
+
+    Every action draws the newest LiDAR scan into route_planner's occupancy grid. A move
+    re-plans an A* route to its target after each short leg (LEG_M along the route) and the
+    policy drives that leg, so the robot goes around what it has seen instead of weaving.
+    Contact here is real (ground truth), so a collision still ends the mission.
+    """
+
+    LEG_M = 0.5
+    LEG_STEPS = 25
+    WAYPOINT_REACHED_M = 0.12
+    ARRIVED_M = 0.08
+    MAX_LEGS = 60
+    ROUTE_CHANGED_M = 0.15
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.planner = RoutePlanner(self.start[:2])
+        self.route_changes = 0
+        self.skipped_scans = 0
+        # Survivors lie below the LiDAR plane, so the map never shows them: keep their bodies
+        # (the same ground truth the person-safety zone uses) out of every route.
+        n = self.planner.n
+        centres = np.stack(np.meshgrid(np.arange(n), np.arange(n), indexing="ij"), axis=-1)
+        xs = self.planner.cx - HALF_SIZE_M + (centres[..., 0] + 0.5) * RESOLUTION_M
+        ys = self.planner.cy - HALF_SIZE_M + (centres[..., 1] + 0.5) * RESOLUTION_M
+        self.keepout = np.zeros((n, n), dtype=bool)
+        for (ax, ay), (bx, by) in self.bodies:
+            dx, dy = bx - ax, by - ay
+            t = np.clip(((xs - ax) * dx + (ys - ay) * dy) / (dx * dx + dy * dy), 0.0, 1.0)
+            # + 5 cm: with the planner's robot-radius + 10 cm inflation, routes keep the 15 cm the
+            # person-safety zone asks for, and checkpoint B (0.56 m from survivor 2) stays reachable.
+            self.keepout |= np.hypot(xs - ax - t * dx, ys - ay - t * dy) <= BODY_HALF_WIDTH_M + 0.05
+        azimuth = np.unwrap(np.radians(self.env._sensor_azimuth_deg))
+        self._angle_min = float(azimuth[0])
+        self._angle_increment = float((azimuth[-1] - azimuth[0]) / (azimuth.size - 1))
+
+    def update_map(self) -> None:
+        state = self.env._state()
+        ranges = self.env._flat_ranges()
+        if ranges.size != self.env._sensor_azimuth_deg.size:
+            # No new scan this frame: drawing the cached one at the new pose would smear the map
+            # (happens in the slower GUI).
+            self.skipped_scans += 1
+            return
+        self.planner.add_scan((state.x, state.y, state.yaw), ranges, self._angle_min, self._angle_increment,
+                              0.12, 12.0)
+        self.planner.evidence[self.keepout] = CAP
+
+    def _step(self, action):
+        result = super()._step(action)
+        self.update_map()
+        return result
+
+    def move_to(self, x: float, y: float) -> tuple[bool, str]:
+        if self.controller.name == "b0":
+            return super().move_to(x, y)
+        radius = math.hypot(x, y)
+        if radius > self.max_goal_radius:
+            scale = self.max_goal_radius / radius
+            log(f"  ({x:.2f}, {y:.2f}) is {radius:.2f} m from the start; clamped to {self.max_goal_radius:.2f} m")
+            x, y = x * scale, y * scale
+        target = self.to_world(x, y)
+        # Fresh scan first: the last cached one can predate the obstacles (GUI watch mode).
+        self.env.settle_scan(self.env.lidar_config.reset_scan_frames)
+        self.update_map()
+        previous = None   # (route length, robot position) of the last plan
+        changes_before = self.route_changes
+        best, legs_without_progress = math.inf, 0
+        for _ in range(self.MAX_LEGS):
+            state = self.env._state()
+            remaining = math.hypot(target[0] - state.x, target[1] - state.y)
+            if remaining <= self.ARRIVED_M:
+                return True, (f"arrived ({self.route_changes - changes_before} route changes, "
+                              f"{self.skipped_scans} stale scans skipped so far)")
+            route = self.planner.plan((state.x, state.y), target)
+            if route is None:
+                return False, "no route to the target: blocked on every side"
+            length = route_length(route)
+            if previous is None:
+                log(f"  route to ({x:.2f}, {y:.2f}): {length:.2f} m")
+            else:
+                # Following the old route would leave (old length - distance driven) to go.
+                expected = previous[0] - math.dist(previous[1], (state.x, state.y))
+                if abs(length - expected) > self.ROUTE_CHANGED_M:
+                    self.route_changes += 1
+                    self.count("route_change")
+                    log(f"  obstacle seen: route changed, now {length:.2f} m to ({x:.2f}, {y:.2f})")
+            previous = (length, (state.x, state.y))
+            final = length <= self.LEG_M
+            ok, why = self.drive_short_leg(target if final else lookahead(route, self.LEG_M), final)
+            if not ok:
+                return False, why
+            if remaining < best - 0.03:
+                best, legs_without_progress = remaining, 0
+            else:
+                legs_without_progress += 1
+                if legs_without_progress >= 4:
+                    log("  no progress for 4 legs: recovery move, then re-plan")
+                    self.count("stall_recovery")
+                    _, info = self.recover(target, {})
+                    if info.get("collision"):
+                        return False, "collision during recovery"
+                    legs_without_progress = 0
+        return False, f"gave up after {self.MAX_LEGS} legs"
+
+    def drive_short_leg(self, goal_world: tuple[float, float], final: bool) -> tuple[bool, str]:
+        observation, info = self.env.continue_to_goal(goal_world)
+        bearing = info["relative_goal_bearing_rad"]
+        if abs(math.degrees(bearing)) > ALIGN_ABOVE_DEG:
+            self.count("goal_alignment")
+            state = self.env._state()
+            self.turn_until(math.atan2(goal_world[1] - state.y, goal_world[0] - state.x), ALIGN_UNTIL_DEG)
+            observation, info = self.env.continue_to_goal(goal_world)
+        for _ in range(self.LEG_STEPS):
+            observation, _, terminated, _, info = self.step(self.decide(observation))
+            if info["collision"]:
+                return False, f"collision after {info['episode_steps']} RL steps"
+            if terminated or (not final and info["distance_to_goal_m"] <= self.WAYPOINT_REACHED_M):
+                break
+        return True, "leg done"
+
+
 def plan_commands(path: Path) -> list[str]:
     data = json.loads(path.read_text())
     commands = []
@@ -410,6 +582,15 @@ def plan_commands(path: Path) -> list[str]:
     return commands
 
 
+def color_obstacles(env: IsaacPointNavLidarEnv, colors) -> None:
+    """Paint the pooled obstacle cubes (None keeps the default orange)."""
+    from pxr import Gf, UsdGeom
+
+    for path, rgb in zip(env._obstacle_paths, colors):
+        if rgb is not None:
+            UsdGeom.Cube(env._stage.GetPrimAtPath(path)).GetDisplayColorAttr().Set([Gf.Vec3f(*rgb)])
+
+
 def dress_scenario(bridge: Bridge, name: str) -> None:
     """Visual-only props for the scenario (the RL obstacles and goals do not change)."""
     if name == "disaster":
@@ -417,13 +598,20 @@ def dress_scenario(bridge: Bridge, name: str) -> None:
             from .disaster_scene import build
         except ImportError:  # pragma: no cover - direct-script convenience only
             from disaster_scene import build
-        build(bridge.env, bridge.to_world, bridge.start[2], DEMO_OBSTACLES, SURVIVORS)
+        bridge.beacons = build(bridge.env, bridge.to_world, bridge.start[2], DEMO_OBSTACLES, SURVIVORS)
 
 
 def frame_camera(bridge: Bridge, scenario: str = "patrol") -> None:
     from isaacsim.core.utils.viewports import set_camera_view
 
     z = bridge.env._ground_z
+    if scenario == "loop":
+        # Almost straight down over the course, start at the bottom like the hardware photo
+        # (the start is next to a wall of the room: a camera behind it would see the wall).
+        tx, ty = bridge.to_world(1.15, -0.45)
+        ex, ey = bridge.to_world(0.35, -0.45)
+        set_camera_view(eye=np.array([ex, ey, z + 3.9]), target=np.array([tx, ty, z]))
+        return
     if scenario == "disaster":
         # Lower, from behind the responder base: debris, survivors and collapse in one shot.
         tx, ty = bridge.to_world(1.5, 0.0)
@@ -442,8 +630,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
     parser.add_argument("--plan", type=Path, default=None, help="run a CyberScape low-level plan JSON directly")
-    parser.add_argument("--max-goal-radius", type=float, default=1.9)
-    parser.add_argument("--max-leg-m", type=float, default=1.9)
+    parser.add_argument("--max-goal-radius", type=float, default=None,
+                        help="default 1.9 m; 3.5 m for --scenario loop (its route reaches 2.6 m)")
+    parser.add_argument("--max-leg-m", type=float, default=None,
+                        help="default 1.9 m; 1.4 m for --scenario loop (as on the real robot)")
     parser.add_argument("--no-obstacles", action="store_true")
     parser.add_argument("--hide-robot", action="store_true")
     parser.add_argument("--scenario", choices=SCENARIOS, default="patrol")
@@ -458,6 +648,12 @@ def main() -> None:
                              "or b0 (original CyberScape move_to_point, no RL)")
     parser.add_argument("--mission-plan", type=Path, default=None,
                         help="plan JSON the incoming commands come from (to time the mission in watch mode)")
+    parser.add_argument("--replan", action=argparse.BooleanOptionalAction, default=None,
+                        help="A* route re-planning around obstacles the LiDAR sees, as on the real robot "
+                             "(default: on for --scenario loop, off otherwise)")
+    parser.add_argument("--throttle", type=float, default=1.0,
+                        help="drive each action this many times faster for proportionally fewer frames: "
+                             "same step size the policy was trained on, less time per step (turns capped at 1 rad/s)")
     parser.add_argument("--spin-guard", action="store_true",
                         help="override long in-place turns with FORWARD when the goal is ahead and the path is clear")
     args = parser.parse_args()
@@ -469,9 +665,28 @@ def main() -> None:
 
     # V3 trains with real-sensor noise and dropouts (sim-to-real augmentation); the simulated
     # LiDAR is ideal, so the demo feeds clean readings unless --sensor-noise.
+    loop = args.scenario == "loop"
+    if args.max_goal_radius is None:
+        args.max_goal_radius = 3.5 if loop else 1.9
+    if args.max_leg_m is None:
+        args.max_leg_m = 1.4 if loop else 1.9
+    layout = LOOP_OBSTACLES if loop else [(*o, None) for o in DEMO_OBSTACLES]
     clean = {} if args.sensor_noise else dict(lidar_noise_std_m=0.0, lidar_ray_dropout=0.0, lidar_sector_dropout=0.0)
-    env = IsaacPointNavLidarEnv(headless=args.headless,
-                                lidar_config=v3_lidar_config(hide_robot_visuals=args.hide_robot, **clean))
+    try:
+        from .isaac_point_nav_env import IsaacPointNavConfig
+    except ImportError:  # pragma: no cover
+        from isaac_point_nav_env import IsaacPointNavConfig
+    base = IsaacPointNavConfig()
+    turn_speed = min(base.max_angular_speed_radps, base.turn_speed_radps * args.throttle)
+    motion = IsaacPointNavConfig(
+        forward_speed_mps=base.forward_speed_mps * args.throttle,
+        forward_frames=max(1, round(base.forward_frames / args.throttle)),
+        turn_speed_radps=turn_speed,
+        turn_frames=max(1, round(base.turn_frames * base.turn_speed_radps / turn_speed)),
+    )
+    env = IsaacPointNavLidarEnv(headless=args.headless, isaac_config=motion,
+                                lidar_config=v3_lidar_config(hide_robot_visuals=args.hide_robot,
+                                                            obstacle_count=max(4, len(layout)), **clean))
     try:
         if not args.headless:
             import carb.settings
@@ -483,10 +698,16 @@ def main() -> None:
         people = SURVIVORS if args.scenario == "disaster" else ()
         timing_meta = {"scenario": args.scenario, "spin_guard": args.spin_guard, "sensor_noise": args.sensor_noise,
                        "model": args.model.name if args.controller == "ppo" else "", "plan": ""}
-        bridge = Bridge(env, controller, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard,
+        if args.replan is None:
+            args.replan = loop
+        timing_meta["replan"] = args.replan
+        timing_meta["throttle"] = args.throttle
+        bridge = (PlanningBridge if args.replan else Bridge)(env, controller, args.max_goal_radius, args.max_leg_m, spin_guard=args.spin_guard,
                         people=people, timing_meta=timing_meta)
-        obstacles = [] if args.no_obstacles else [(*bridge.to_world(x, y), w) for x, y, w in DEMO_OBSTACLES]
+        obstacles = [] if args.no_obstacles else [(*bridge.to_world(x, y), w) for x, y, w, _ in layout]
         env._place_obstacles(obstacles)
+        if not args.no_obstacles:
+            color_obstacles(env, [rgb for *_, rgb in layout])
         x0, y0, _ = bridge.start
         if not args.headless:
             dress_scenario(bridge, args.scenario)
@@ -502,7 +723,10 @@ def main() -> None:
             log(f"snapshot saved to {args.snapshot}")
             return
         log(f"scenario {args.scenario}; controller {args.controller}; start pose = mission origin (0, 0), +x ahead, +y left; "
-            f"{len(obstacles)} obstacles placed; spin guard {'ON' if args.spin_guard else 'off'}")
+            f"{len(obstacles)} obstacles placed; spin guard {'ON' if args.spin_guard else 'off'}; "
+            f"route re-planning {'ON' if args.replan else 'off'}; throttle x{args.throttle:g} "
+            f"(forward {motion.forward_speed_mps:.2f} m/s x {motion.forward_frames} frames, "
+            f"turn {motion.turn_speed_radps:.2f} rad/s x {motion.turn_frames} frames)")
 
         if args.plan is not None:
             commands = plan_commands(args.plan)

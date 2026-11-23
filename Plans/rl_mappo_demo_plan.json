@@ -1,0 +1,68 @@
+{
+    "target": "MULTI_TURTLEBOT",
+    "phases": [
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 1,
+            "state": "TurtleBot3_1 at base A (-3.32, 0.44), TurtleBot3_2 at base B (-1.32, 0.44).",
+            "phase_target": "Swap sides: TurtleBot3_1 inspects station 1 at (-1.65, 1.55); its route crosses TurtleBot3_2's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-1.65, 1.55))\nTurtleBot3_1.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 1,
+            "state": "TurtleBot3_2 at base B (-1.32, 0.44).",
+            "phase_target": "Swap sides: TurtleBot3_2 inspects station 2 at (-2.95, 1.55); its route crosses TurtleBot3_1's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-2.95, 1.55))\nTurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 2,
+            "state": "TurtleBot3_1 at station 1.",
+            "phase_target": "Approach the storage-room doorway at (-2.3, 0.55).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-2.3, 0.55))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 2,
+            "state": "TurtleBot3_2 at station 2.",
+            "phase_target": "Hold position and keep watch while TurtleBot3_1 approaches the doorway.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 3,
+            "state": "TurtleBot3_1 in front of the doorway.",
+            "phase_target": "Pass the 0.8 m doorway and inspect the storage room at (-2.3, -0.85).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-2.3, -0.85))\nTurtleBot3_1.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 3,
+            "state": "TurtleBot3_2 at station 2.",
+            "phase_target": "Return to base B (-1.32, 0.44).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.32, 0.44))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 4,
+            "state": "TurtleBot3_1 in the storage room, TurtleBot3_2 at base B.",
+            "phase_target": "Report mission complete.",
+            "inputs": [],
+            "outputs": {"mission_status": {"type": "string"}},
+            "low_level_plan": "TurtleBot3_1.communicate_with_apm('mission_complete')"
+        }
+    ]
+}

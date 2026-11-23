@@ -1,0 +1,6 @@
+{"event": "mission_start", "sim_s": 0.0, "sim_abs_s": 1.8333334289491177, "wall_s": 9.887968190014362e-06, "tasks": ["t00 TurtleBot3.move_to_point((1.2, 0.0))", "t01 TurtleBot3.move_to_point((2.4, 0.0))", "t02 TurtleBot3.move_to_point((2.4, -0.9))", "t03 TurtleBot3.move_to_point((0.0, -0.5))", "t04 TurtleBot3.scan_with_lidar()"], "scenario": "loop", "spin_guard": true, "sensor_noise": false, "model": "checkpoint_1000000_steps.zip", "plan": "rl_loop_burger_plan.json", "replan": true, "throttle": 3.0}
+{"event": "task_start", "sim_s": 0.0, "sim_abs_s": 1.8333334289491177, "wall_s": 0.0007836479926481843, "task": "t00 TurtleBot3.move_to_point((1.2, 0.0))", "robot": "turtlebot3"}
+{"event": "route_change", "sim_s": 7.600000396370888, "sim_abs_s": 9.433333825320005, "wall_s": 9.80120121105574}
+{"event": "goal_alignment", "sim_s": 7.700000401586294, "sim_abs_s": 9.533333830535412, "wall_s": 9.895133533049375}
+{"event": "task_failed", "sim_s": 11.666667275130749, "sim_abs_s": 13.500000704079866, "wall_s": 14.63142583402805, "task": "t00 TurtleBot3.move_to_point((1.2, 0.0))", "reason": "collision after 6 RL steps"}
+{"event": "mission_end", "sim_s": 11.666667275130749, "sim_abs_s": 13.500000704079866, "wall_s": 14.631448613014072, "status": "collision", "reason": "collision after 6 RL steps"}

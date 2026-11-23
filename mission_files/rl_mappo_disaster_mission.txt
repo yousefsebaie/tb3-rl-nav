@@ -1,0 +1,19 @@
+Earthquake search and rescue with two TurtleBot3 Burger robots, TurtleBot3_1 and TurtleBot3_2, in a partially collapsed building in Isaac Sim. All coordinates are in metres in the building map frame (x to the east, y to the north).
+
+Building map from the pre-mission scan:
+- The responder base is at the north side of the building. TurtleBot3_1 starts at (-2.3, 1.95), directly in front of the north end of a narrow rubble corridor. TurtleBot3_2 starts at (-1.2, 1.95).
+- The rubble corridor runs from the base south to the hub at (-2.3, 0.5).
+- A fallen wall crosses the building south of the hub. It has two doorways: the west doorway, approached from the west sector point (-3.2, 0.6), and the east doorway, approached from the east doorway point (-1.4, 0.5). Behind the west doorway is the west room, whose inspection point is (-3.0, -0.55). Behind the east doorway is the east room, whose inspection point is (-1.4, -0.55). A partition separates the two rooms, so each room can only be entered through its own doorway.
+- The east sector inspection point is (-1.0, 0.9).
+
+Survivors reported by callers: one in the east sector, one in the west sector, one in the west room and one in the east room.
+
+Tasking:
+- TurtleBot3_1 drives through the rubble corridor to the hub, then searches the west sector at the west sector point, then enters the west room through the west doorway to its inspection point and stays there with the survivor.
+- TurtleBot3_2 searches the east sector at the east sector inspection point, then drives to the east doorway point, enters the east room to its inspection point, then leaves the east room back to the east doorway point, drives to the hub, and finally drives north through the rubble corridor back to the base at (-2.3, 1.95) to guide the rescue team in.
+
+Rules:
+- Use exactly the numeric coordinates given above in move_to_point, never variables or placeholders.
+- Each phase contains at most one move_to_point. Phases with the same number are executed by both robots at the same time, so number the phases of each robot from 1 in the order above.
+- At every inspection point (east sector, west sector, west room, east room) call scan_with_lidar(), then detect_with_camera('survivor'), then communicate_with_apm with what was found and where.
+- When the mission is done, TurtleBot3_2 reports 'search complete' to the APM.

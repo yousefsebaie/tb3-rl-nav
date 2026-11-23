@@ -1,0 +1,80 @@
+{
+  "baseline": "rule",
+  "candidate": "ppo",
+  "metric": "makespan_sim_s",
+  "scenarios_matched": 30,
+  "scenarios_both_successful": 2,
+  "success_rate": {
+    "rule": 0.06666666666666667,
+    "ppo": 0.5333333333333333
+  },
+  "collision_rate": {
+    "rule": 0.03333333333333333,
+    "ppo": 0.36666666666666664
+  },
+  "timeout_rate": {
+    "rule": 0.9,
+    "ppo": 0.1
+  },
+  "mean_s": {
+    "rule": 49.591499999999996,
+    "ppo": 41.8
+  },
+  "median_s": {
+    "rule": 49.591499999999996,
+    "ppo": 41.8
+  },
+  "mean_delta_s": 7.791500000000001,
+  "delta_ci95_s": [
+    4.350000000000001,
+    11.233
+  ],
+  "mean_paired_improvement_pct": 19.77683576406626,
+  "paired_improvement_ci95_pct": [
+    6.692307692307694,
+    32.861363835824825
+  ],
+  "aggregate_mean_change_pct": 15.711361826119393,
+  "penalized_mean_s": {
+    "rule": 115.3061,
+    "ppo": 86.67446666666666
+  },
+  "path_length": {
+    "baseline": "rule",
+    "candidate": "ppo",
+    "metric": "path_length_m",
+    "scenarios_matched": 30,
+    "scenarios_both_successful": 2,
+    "success_rate": {
+      "rule": 0.06666666666666667,
+      "ppo": 0.5333333333333333
+    },
+    "collision_rate": {
+      "rule": 0.03333333333333333,
+      "ppo": 0.36666666666666664
+    },
+    "timeout_rate": {
+      "rule": 0.9,
+      "ppo": 0.1
+    },
+    "mean_s": {
+      "rule": 1.002,
+      "ppo": 0.985
+    },
+    "median_s": {
+      "rule": 1.002,
+      "ppo": 0.985
+    },
+    "mean_delta_s": 0.01699999999999996,
+    "delta_ci95_s": [
+      -0.013000000000000123,
+      0.04700000000000004
+    ],
+    "mean_paired_improvement_pct": 3.295011148272017,
+    "paired_improvement_ci95_pct": [
+      -0.9420289855072553,
+      7.532051282051289
+    ],
+    "aggregate_mean_change_pct": 1.6966067864271472
+  }
+}

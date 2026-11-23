@@ -15,11 +15,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
 case "${1:-patrol}" in
     patrol)   MISSION="$REPO/mission_files/rl_patrol_mission.txt";   SCENARIO=patrol ;;
-    disaster) MISSION="$REPO/mission_files/rl_disaster_mission.txt"; SCENARIO=disaster ;;
+    disaster) MISSION="$REPO/mission_files/rl_disaster_mission.txt"; SCENARIO=disaster
+              EXTRA=--replan ;;   # route layer: debris on the way back to base, survivors kept out of routes
     *)        MISSION="$(realpath "$1")";                             SCENARIO=patrol ;;
 esac
 # Passed on to the bridge by run_cyberscape_rl_demo.sh (spin guard on unless BRIDGE_ARGS is set).
-export BRIDGE_ARGS="${BRIDGE_ARGS---spin-guard} --scenario $SCENARIO"
+export BRIDGE_ARGS="${BRIDGE_ARGS---spin-guard} --scenario $SCENARIO ${EXTRA:-}"
 SERVER="http://localhost:5001"
 SERVER_LOG="$HERE/results/server.log"
 

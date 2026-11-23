@@ -30,12 +30,14 @@ TROUSERS = (0.18, 0.20, 0.26)
 HAZARD_YELLOW = (0.95, 0.80, 0.05)
 HAZARD_BLACK = (0.05, 0.05, 0.05)
 TARP = (0.95, 0.45, 0.05)
+FOUND_GREEN = (0.15, 0.95, 0.30)
 ROOT = "/World/rl_disaster"
 
 # Corridors the robot drives (start -> A, A -> B including the detour around the middle
 # block). Low rubble is kept out of them so the robot never visibly drives through props.
 ROUTES = (((0.0, 0.0), (1.5, 0.75)), ((1.5, 0.75), (1.5, -0.75)))
 ROUTE_CLEARANCE_M = 0.40
+_routes_override = None   # build_mission(): the two-robot mission's routes, room frame
 
 
 class _Builder:
@@ -116,11 +118,13 @@ class _Builder:
 
 
 def _near_route(x: float, y: float, margin: float) -> bool:
-    for (ax, ay), (bx, by) in ROUTES:
+    for (ax, ay), (bx, by) in _routes_override or ROUTES:
         dx, dy = bx - ax, by - ay
         t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
         if math.hypot(x - (ax + t * dx), y - (ay + t * dy)) < margin:
             return True
+    if _routes_override:
+        return False
     return math.hypot(x, y) < margin or (1.15 < x < 2.05 and abs(y) < 0.8)
 
 
@@ -241,8 +245,39 @@ def _lighting(b: _Builder) -> None:
     b.light("fire", -0.1, 2.4, 0.2, (1.0, 0.5, 0.15), 3.0e4, 0.12)
 
 
-def build(env, to_world, yaw0: float, debris_blocks, survivors) -> None:
-    """debris_blocks: (x, y, width) of the RL obstacle cubes; survivors: (chest x, chest y, heading deg)."""
+def _beacons(b: _Builder, survivors) -> list[list[str]]:
+    """Hidden green markers per survivor, shown by the bridge once the camera confirms them.
+
+    Floor ring (below 0.01 m) and an orb + light at 0.75 m: both outside the LiDAR plane.
+    Created now and only made visible later (prims are never created while the LiDAR runs).
+    """
+    from pxr import UsdGeom
+
+    groups = []
+    for x, y, _ in survivors:
+        prims = [b.sphere("found_orb", x, y, 0.75, 0.06, FOUND_GREEN),
+                 b.light("found_light", x, y, 0.75, (0.25, 1.0, 0.4), 4.0e4, 0.05)]
+        for i in range(18):
+            a = 2 * math.pi * i / 18
+            prims.append(b.box("found_ring", x + 0.62 * math.cos(a), y + 0.62 * math.sin(a), 0.004,
+                               (0.06, 0.16, 0.006), FOUND_GREEN, (0.0, 0.0, math.degrees(a))))
+        for prim in prims:
+            UsdGeom.Imageable(prim.GetPrim()).MakeInvisible()
+        groups.append([str(prim.GetPath()) for prim in prims])
+    return groups
+
+
+def show_beacon(stage, paths: list[str]) -> None:
+    from pxr import UsdGeom
+
+    for path in paths:
+        UsdGeom.Imageable(stage.GetPrimAtPath(path)).MakeVisible()
+
+
+def build(env, to_world, yaw0: float, debris_blocks, survivors) -> list[list[str]]:
+    """debris_blocks: (x, y, width) of the RL obstacle cubes; survivors: (chest x, chest y, heading deg).
+
+    Returns the hidden beacon prim paths per survivor (see show_beacon)."""
     from pxr import Gf, UsdGeom
 
     rng = random.Random(7)
@@ -257,3 +292,54 @@ def build(env, to_world, yaw0: float, debris_blocks, survivors) -> None:
     _collapse_zone(b, rng)
     _responder_base(b)
     _lighting(b)
+    return _beacons(b, survivors)
+
+
+def build_mission(env, debris_blocks, survivors, routes, base_xy, wing) -> list[list[str]]:
+    """Two-robot MAPPO disaster mission (cyberscape_mappo_mission.py), room frame, yaw 0.
+
+    routes: ((x0, y0), (x1, y1)) legs kept clear of low rubble; base_xy: responder base (flat
+    props only, the robots drive back to it); wing: (x_min, x_max, y_min, y_max) of the
+    collapsed wing beyond the doorway. Same LiDAR rules as build(): props near the routes stay
+    below 0.09 m, overhangs above 0.27 m. Returns the hidden beacon paths per survivor."""
+    global _routes_override
+    from pxr import Gf, Usd, UsdGeom, UsdLux
+
+    _routes_override = tuple(routes)
+    rng = random.Random(11)
+    b = _Builder(env, lambda x, y: (x, y), 0.0)
+    for path in env._obstacle_paths:
+        UsdGeom.Gprim(env._stage.GetPrimAtPath(path)).CreateDisplayColorAttr([Gf.Vec3f(*CONCRETE)])
+    for x, y, width in debris_blocks:
+        _debris_block(b, x, y, width, rng)
+    for index, (x, y, heading) in enumerate(survivors):
+        c, s = math.cos(math.radians(heading)), math.sin(math.radians(heading))
+        _survivor(b, x - 0.33 * c, y - 0.33 * s, heading, SHIRT[index % len(SHIRT)], rng)
+    # Collapsed wing: dust and low rubble off the routes (below 0.09 m).
+    x0, x1, y0, y1 = wing
+    for _ in range(60):
+        px, py = rng.uniform(x0, x1), rng.uniform(y0, y1)
+        if _near_route(px, py, 0.35):
+            continue
+        size = rng.uniform(0.03, 0.09)
+        b.box("rubble", px, py, size * 0.3, (size, size * rng.uniform(0.6, 1.3), size * 0.6),
+              rng.choice((CONCRETE, CONCRETE_DARK, DUST)), (rng.uniform(0, 30), rng.uniform(0, 30), rng.uniform(0, 90)))
+    # Responder base: tarp and hazard tape on the floor.
+    bx, by = base_xy
+    b.box("tarp", bx, by, 0.003, (1.3, 0.55, 0.004), TARP)
+    for i in range(16):
+        b.box("tape", bx - 1.05 + i * 0.14, by - 0.38, 0.004, (0.12, 0.03, 0.004),
+              HAZARD_YELLOW if i % 2 == 0 else HAZARD_BLACK)
+    # Lighting: dim the room, cold flood over the base, red beacon, fire glow in the wing.
+    for prim in Usd.PrimRange(b.stage.GetPseudoRoot()):
+        if prim.HasAPI(UsdLux.LightAPI) and not str(prim.GetPath()).startswith(ROOT):
+            light = UsdLux.LightAPI(prim)
+            value = light.GetIntensityAttr().Get()
+            if value:
+                light.GetIntensityAttr().Set(value * 0.35)
+    b.light("flood", bx, by, 1.35, (0.85, 0.92, 1.0), 9.0e4, 0.06)
+    b.light("flood", 0.5 * (x0 + x1), 0.5 * (by + y1), 1.35, (0.85, 0.92, 1.0), 6.0e4, 0.06)
+    b.light("beacon", bx + 0.75, by, 0.95, (1.0, 0.05, 0.02), 3.0e4, 0.03)
+    b.light("fire", x0 + 0.2, y0 + 0.15, 0.3, (1.0, 0.45, 0.12), 5.0e4, 0.12)
+    b.light("fire", x1 - 0.2, y0 + 0.15, 0.3, (1.0, 0.5, 0.15), 3.0e4, 0.1)
+    return _beacons(b, survivors)
