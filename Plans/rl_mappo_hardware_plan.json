@@ -1,0 +1,86 @@
+{
+    "target": "MULTI_TURTLEBOT",
+    "phases": [
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 1,
+            "state": "TurtleBot3_1 at base A (0.0, 0.0) facing TurtleBot3_2 at base B (about 2.0, 0.0).",
+            "phase_target": "Swap sides: TurtleBot3_1 inspects station 1 at (1.4, 0.6); its route crosses TurtleBot3_2's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((1.4, 0.6))\nTurtleBot3_1.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 1,
+            "state": "TurtleBot3_2 at base B (about 2.0, 0.0).",
+            "phase_target": "Swap sides: TurtleBot3_2 inspects station 2 at (0.6, 0.6); its route crosses TurtleBot3_1's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((0.6, 0.6))\nTurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 2,
+            "state": "TurtleBot3_1 at station 1.",
+            "phase_target": "Search the east sector: drive to (1.6, -0.6) and look for a survivor.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((1.6, -0.6))\nTurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 2,
+            "state": "TurtleBot3_2 at station 2.",
+            "phase_target": "Hold position and keep watch while TurtleBot3_1 searches.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 3,
+            "state": "TurtleBot3_1 in the east sector.",
+            "phase_target": "Hold position while TurtleBot3_2 searches.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 3,
+            "state": "TurtleBot3_2 at station 2.",
+            "phase_target": "Search the west sector: drive to (0.4, -0.6) and look for a survivor.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((0.4, -0.6))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 4,
+            "state": "Both robots in the south sectors.",
+            "phase_target": "Return to base A; the route crosses TurtleBot3_2's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.return_to_base()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 4,
+            "state": "Both robots in the south sectors.",
+            "phase_target": "Return to base B; the route crosses TurtleBot3_1's.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.return_to_base()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 5,
+            "state": "Both robots back at their bases.",
+            "phase_target": "Report mission complete.",
+            "inputs": [],
+            "outputs": {"mission_status": {"type": "string"}},
+            "low_level_plan": "TurtleBot3_1.communicate_with_apm('mission_complete')"
+        }
+    ]
+}

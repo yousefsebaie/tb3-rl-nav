@@ -97,7 +97,7 @@ def main() -> None:
         if args.hold:
             outcome = "HOLD"
         else:
-            outcome = drive(env, policy, args, csv, t0)
+            outcome = drive(env, policy, tuple(args.goal), args.max_steps, not args.no_gap, csv, t0)
         log(f"RESULT {outcome}")
 
         # Stay visible to the teammate (active = 0) until it is done too.
@@ -121,14 +121,30 @@ def main() -> None:
         log(f"{args.robot} {outcome}; saved {csv_path}")
 
 
-def drive(env: MappoRosEnv, policy: NumpyPolicy, args, csv, t0: float) -> str:
-    env.set_goal_shared(*args.goal)
+def drive(env: MappoRosEnv, policy: NumpyPolicy, goal: tuple[float, float], max_steps: int, use_gap: bool,
+          csv, t0: float, abort=lambda: False) -> str:
+    """One move: align, then MAPPO (+ gap hand-over) to ``goal`` in the shared frame.
+
+    Returns SUCCESS, COLLISION, TIMEOUT or TEAMMATE_LOST; leaves env.active = False.
+    """
+    try:
+        return _drive(env, policy, goal, max_steps, use_gap, csv, t0, abort)
+    finally:
+        env.active = False
+        env.stop()
+
+
+def _drive(env, policy, goal, max_steps, use_gap, csv, t0, abort) -> str:
+    env.set_goal_shared(*goal)
     observation, info = env.reset()
     env.active = True
     gap = GapAssist()
     aligning = True
     lost_since = None
-    for _ in range(args.max_steps):
+    for _ in range(max_steps):
+        if abort():
+            log("stop requested")
+            return "ABORTED"
         bearing_deg = math.degrees(info["relative_goal_bearing_rad"])
         dist = info["distance_to_goal_m"]
         policy_action = policy.act(observation)
@@ -137,7 +153,7 @@ def drive(env: MappoRosEnv, policy: NumpyPolicy, args, csv, t0: float) -> str:
             gap.reset()          # fresh stuck history once MAPPO takes over
         if aligning:
             action, why = (TURN_LEFT if bearing_deg > 0 else TURN_RIGHT), "align"
-        elif args.no_gap:
+        elif not use_gap:
             action, why = policy_action, "policy"
         else:
             state = env._current_state()

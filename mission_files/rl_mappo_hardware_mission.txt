@@ -1,0 +1,20 @@
+Search and rescue with two real TurtleBot3 Burger robots, TurtleBot3_1 and TurtleBot3_2, in the lab. All coordinates are in metres in the mission frame: TurtleBot3_1's base is the origin, x points from TurtleBot3_1's base towards TurtleBot3_2's base, y points to the left of that.
+
+Map of the room:
+- TurtleBot3_1 starts at base A (0.0, 0.0). TurtleBot3_2 starts at base B, about 2.0 m away at (2.0, 0.0), facing TurtleBot3_1.
+- Station 1 is at (1.4, 0.6) and station 2 is at (0.6, 0.6), on the north side between the bases.
+- The east sector inspection point is (1.6, -0.6). The west sector inspection point is (0.4, -0.6).
+
+Survivors reported by callers: one in the east sector and one in the west sector.
+
+Tasking:
+- First both robots swap sides at the same time: TurtleBot3_1 drives to station 1 and TurtleBot3_2 drives to station 2, and both scan with the LiDAR there.
+- Then TurtleBot3_1 searches the east sector at the east sector inspection point while TurtleBot3_2 holds at station 2 and scans.
+- Then TurtleBot3_2 searches the west sector at the west sector inspection point while TurtleBot3_1 holds and scans.
+- Finally both robots return to base at the same time: TurtleBot3_1 to base A (0.0, 0.0) and TurtleBot3_2 to base B with return_to_base().
+
+Rules:
+- Use exactly the numeric coordinates given above in move_to_point, never variables or placeholders.
+- Each phase contains at most one move_to_point. Phases with the same number are executed by both robots at the same time, so number the phases of each robot from 1 in the order above, and give each robot a phase for every step, even when it only holds and scans.
+- At every inspection point (east sector, west sector) call scan_with_lidar(), then detect_with_camera('survivor'), then communicate_with_apm with what was found and where.
+- When the mission is done, TurtleBot3_1 reports 'mission complete' to the APM.
