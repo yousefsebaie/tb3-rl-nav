@@ -132,7 +132,14 @@ MAPPO handoff ([MAPPO_HARDWARE_HANDOFF.md](MAPPO_HARDWARE_HANDOFF.md) section 7)
   3. Step 2: the same on Burger 2.
   4. Step 3: `mappo_dry_run.py` on one robot (no `--peer`).
   5. Step 4: `mappo_dry_run.py` on both robots with `--peer`, robots still, checked with a tape measure.
-  6. Steps 5–7 (encounters, align-first and gap controller, phase barrier + CyberScape): not built yet.
+  6. Steps 5–7: **built and run, see below.** Steps 1–4 and 5 (single encounters) were skipped on purpose for the demo.
+
+**CyberScape → MAPPO V5 on both real Burgers: first run COMPLETE (2026-11-23).** Hand-written `Plans/rl_mappo_hardware_plan.json` (5 phases: both cross to the far station at the same time, Burger 1 searches east while Burger 2 holds, Burger 2 searches west while Burger 1 holds, both return to base at the same time with crossing routes, report), approved in the HITL dashboard. Result: 5/5 phases, 2/2 survivor stand-ins found, no collision, no contact stop, 0 gap hand-overs (MAPPO drove every step after the align-first turns), closest approach 0.36 m centre to centre (0.15 m between bodies) during the crossings. Record: `Hardware/Turtlebot3/rl_point_nav/results/missions/mappo_two_burgers_20261123/` (sender log, both agent logs, per-step CSVs with all 15 inputs).
+- Run it: `START1=0,0,0 START2=1.8,0,180 SURVIVORS="1.8,-1.2 0.6,-1.2" ./run_cyberscape_mappo_hardware.sh <BURGER1_IP> <BURGER2_IP>` (or `... --live` for LLM planning from `mission_files/rl_mappo_hardware_mission.txt`), then approve at http://localhost:5001/dashboard/index.html. Stop: `curl -X POST http://<IP>:8765/stop`.
+- Layout on the 0.60 m floor tiles: Burger 1 centred in a tile, Burger 2 three tiles ahead in the same column facing back, cone 3 ahead / 2 right, box 1 ahead / 2 right (right = Burger 1's right).
+- **The LDS-02 does not see the black Burgers at all** (no returns at 2 m in either scan), so the LiDAR placement step (`mappo_find_teammate.py`) does not work and the starts are given from the tiles. Robot-robot separation rests entirely on the pose exchange (as in the simulator, where robot bodies were hidden from the LiDAR); `mappo_drive.py` stops a move when the centres come within 0.24 m.
+- Survivor detection is the simulator's stand-in (known positions within 1.5 m), not a camera detector.
+- Next: more runs for numbers (the sim reported 72% both-reached on its benchmark), the doorway layout (0.8 m opening, walls >= 25 cm tall), and a `--live` LLM-planned run.
 - Older items: the full single-robot cycle in server mode (LLM plans → approve → `hardware_rl_bridge.py --server ...`), and a Pull Request from `hardware` into `main`.
 
 ## Simulation PC: next steps

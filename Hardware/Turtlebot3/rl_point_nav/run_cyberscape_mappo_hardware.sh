@@ -15,6 +15,7 @@
 #   3) starts mappo_agent.py on both Pis (pose exchange, MAPPO, gap controller);
 #   4) starts the CyberScape HITL server (port 5001) with the plan, and the hardware sender as the
 #      post-approval hook: open http://localhost:5001/dashboard/index.html and press Approve.
+# Start poses by hand (the LDS-02 may not see the black Burgers): START1=0,0,0 START2=1.8,0,180 ./run_...
 # Survivor stand-ins (camera stand-in, as in simulation): SURVIVORS="1.6,-1.1 0.4,-1.1" by default.
 # Emergency stop: curl -X POST http://BURGER_IP:8765/stop   (or switch the robot off)
 set -euo pipefail
@@ -40,18 +41,23 @@ for ip in "$B1" "$B2"; do
     ssh -o ConnectTimeout=8 "ubuntu@$ip" "mkdir -p ~/rl_point_nav/models/mappo_v5_kl05"
     (cd "$HERE" && scp -q $FILES "ubuntu@$ip:rl_point_nav/")
     scp -q "$HERE/models/mappo_v5_kl05/best_model.npz" "ubuntu@$ip:rl_point_nav/models/mappo_v5_kl05/"
-    ssh "ubuntu@$ip" "pkill -f mappo_agent.py || true; $ROS export ROS_DOMAIN_ID=$(domain "$ip");
-        pgrep -x turtlebot3_ros >/dev/null || { nohup ros2 launch turtlebot3_bringup robot.launch.py > /tmp/bringup.log 2>&1 < /dev/null & sleep 20; };
+    ssh "ubuntu@$ip" "pkill -f '[m]appo_agent.py' || true; $ROS export ROS_DOMAIN_ID=$(domain "$ip");
+        pgrep -x turtlebot3_ros >/dev/null || { setsid -f nohup ros2 launch turtlebot3_bringup robot.launch.py > /tmp/bringup.log 2>&1 < /dev/null; sleep 20; };
         ros2 service call /motor_power std_srvs/srv/SetBool '{data: true}' > /dev/null 2>&1 || true;
         echo \"\$(hostname): \$(timeout 10 ros2 topic echo --once /sensor_state 2>/dev/null | grep -E 'torque|battery' | tr '\n' ' ')\""
 done
 
-say "2) Where the robots stand (each LiDAR looks for the other)"
-SEEN1="$(ssh "ubuntu@$B1" "$ROS export ROS_DOMAIN_ID=30; cd ~/rl_point_nav && python3 mappo_find_teammate.py")"
-SEEN2="$(ssh "ubuntu@$B2" "$ROS export ROS_DOMAIN_ID=31; cd ~/rl_point_nav && python3 mappo_find_teammate.py")"
-echo "Burger 1 sees: $SEEN1"
-echo "Burger 2 sees: $SEEN2"
-read -r START1 START2 < <(cd "$HERE" && python3 - "$SEEN1" "$SEEN2" <<'EOF'
+say "2) Where the robots stand"
+if [ -n "${START2:-}" ]; then
+    # Measured on the floor (the LDS-02 does not see the black Burgers): START1="x,y,yaw_deg" START2="x,y,yaw_deg"
+    START1="${START1:-0,0,0}"
+    echo "Given: START1=$START1 START2=$START2"
+else
+    SEEN1="$(ssh "ubuntu@$B1" "$ROS export ROS_DOMAIN_ID=30; cd ~/rl_point_nav && python3 mappo_find_teammate.py")"
+    SEEN2="$(ssh "ubuntu@$B2" "$ROS export ROS_DOMAIN_ID=31; cd ~/rl_point_nav && python3 mappo_find_teammate.py")"
+    echo "Burger 1 sees: $SEEN1"
+    echo "Burger 2 sees: $SEEN2"
+    read -r START1 START2 < <(cd "$HERE" && python3 - "$SEEN1" "$SEEN2" <<'EOF'
 import json, math, sys
 from mappo_hardware import head_on_starts
 a, b = (json.loads(s) for s in sys.argv[1:3])
@@ -59,15 +65,16 @@ s1, s2 = head_on_starts((a["range_m"], a["bearing_deg"]), (b["range_m"], b["bear
 f = lambda s: f"{s[0]:.3f},{s[1]:.3f},{math.degrees(s[2]):.1f}"
 print(f(s1), f(s2))
 EOF
-)
-echo "Burger 1 (TurtleBot3_1) base A: ${START1//,/ }   Burger 2 (TurtleBot3_2) base B: ${START2//,/ }   (x m, y m, heading deg)"
+    )
+    echo "Burger 1 (TurtleBot3_1) base A: ${START1//,/ }   Burger 2 (TurtleBot3_2) base B: ${START2//,/ }   (x m, y m, heading deg)"
+fi
 if [ -t 0 ]; then read -r -p "Does that match the floor (Burger 2 about 2 m straight ahead of Burger 1)? Enter = yes, Ctrl+C = no " _; fi
 
 say "3) MAPPO agents on both Burgers"
-ssh "ubuntu@$B1" "$ROS export ROS_DOMAIN_ID=30; cd ~/rl_point_nav && nohup python3 mappo_agent.py --robot TURTLEBOT3_1 \
-    --start ${START1//,/ } --peer $B2 --survivors $SURVIVORS > /tmp/mappo_agent.log 2>&1 < /dev/null &"
-ssh "ubuntu@$B2" "$ROS export ROS_DOMAIN_ID=31; cd ~/rl_point_nav && nohup python3 mappo_agent.py --robot TURTLEBOT3_2 \
-    --start ${START2//,/ } --peer $B1 --survivors $SURVIVORS > /tmp/mappo_agent.log 2>&1 < /dev/null &"
+ssh "ubuntu@$B1" "$ROS export ROS_DOMAIN_ID=30; cd ~/rl_point_nav && setsid -f nohup python3 mappo_agent.py --robot TURTLEBOT3_1 \
+    --start ${START1//,/ } --peer $B2 --survivors $SURVIVORS > /tmp/mappo_agent.log 2>&1 < /dev/null"
+ssh "ubuntu@$B2" "$ROS export ROS_DOMAIN_ID=31; cd ~/rl_point_nav && setsid -f nohup python3 mappo_agent.py --robot TURTLEBOT3_2 \
+    --start ${START2//,/ } --peer $B1 --survivors $SURVIVORS > /tmp/mappo_agent.log 2>&1 < /dev/null"
 for ip in "$B1" "$B2"; do
     for _ in $(seq 1 60); do curl -s -m 2 "http://$ip:8765/status" > /dev/null && break; sleep 1; done
     echo "$ip: $(curl -s -m 2 "http://$ip:8765/status" || echo 'NOT ANSWERING, see /tmp/mappo_agent.log on the robot')"

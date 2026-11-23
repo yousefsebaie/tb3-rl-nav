@@ -44,6 +44,7 @@ DEFAULT_MODEL = HERE / "models" / "mappo_v5_kl05" / "best_model.npz"
 MISSION_STEP_LIMIT = 400        # cyberscape_mappo_mission.MISSION_STEP_LIMIT
 TEAMMATE_WAIT_S = 30.0
 AFTER_DONE_WAIT_S = 120.0
+ROBOT_CONTACT_M = 2 * 0.105 + 0.03
 
 
 def log(message: str) -> None:
@@ -187,6 +188,12 @@ def _drive(env, policy, goal, max_steps, use_gap, csv, t0, abort) -> str:
             continue
         if info["collision"]:
             log(f"contact: something within 13 cm after {info['episode_steps']} steps")
+            return "COLLISION"
+        mate, me = env.last_teammate, env.latest_shared()
+        if mate is not None and math.dist(me[:2], (mate["x"], mate["y"])) < ROBOT_CONTACT_M:
+            # The LDS does not see the black Burgers, so robot-robot contact is checked from the shared poses
+            # (the simulator's footprint test: 2 x 0.105 m, plus a small margin).
+            log(f"teammate within {ROBOT_CONTACT_M:.2f} m (centre to centre) after {info['episode_steps']} steps")
             return "COLLISION"
         if terminated:
             log(f"goal reached in {info['episode_steps']} steps, {time.monotonic() - t0:.0f} s, "
