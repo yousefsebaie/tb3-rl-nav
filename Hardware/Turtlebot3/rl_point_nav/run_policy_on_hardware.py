@@ -32,10 +32,12 @@ from pathlib import Path
 
 try:
     from .config import PointNavAction
+    from .lidar_sectors import PROFILES
     from .policy_numpy import NumpyPolicy
     from .ros_point_nav_lidar_env import RosPointNavLidarEnv
 except ImportError:  # pragma: no cover - direct-script convenience only
     from config import PointNavAction
+    from lidar_sectors import PROFILES
     from policy_numpy import NumpyPolicy
     from ros_point_nav_lidar_env import RosPointNavLidarEnv
 
@@ -57,12 +59,22 @@ def main() -> None:
     parser.add_argument("--goal-y", type=float, required=True, help="metres to the robot's left")
     parser.add_argument("--dry-run", action="store_true", help="read sensors and print actions; never move")
     parser.add_argument("--allow-out-of-range", action="store_true", help="allow goals outside the trained range")
+    parser.add_argument("--profile", choices=sorted(PROFILES),
+                        help="LiDAR sector settings the model was trained with; "
+                             "default: profile.txt next to --model, else v2")
     args = parser.parse_args()
 
     policy = NumpyPolicy(args.model)
     use_lidar = policy.obs_dim == 6
     if policy.obs_dim not in (3, 6):
         raise SystemExit(f"Unsupported policy input size {policy.obs_dim}")
+    profile = args.profile
+    profile_file = args.model.parent / "profile.txt"
+    if profile is None and profile_file.is_file():
+        profile = profile_file.read_text().strip()
+        if profile not in PROFILES:
+            raise SystemExit(f"{profile_file} says {profile!r}; expected one of {sorted(PROFILES)}")
+    profile = profile or "v2"
 
     distance = math.hypot(args.goal_x, args.goal_y)
     bearing_deg = math.degrees(math.atan2(args.goal_y, args.goal_x))
@@ -73,7 +85,7 @@ def main() -> None:
             raise SystemExit(message + " Use --allow-out-of-range to try anyway.")
         print("WARNING:", message)
 
-    env = RosPointNavLidarEnv(0.0, 0.0, use_lidar=use_lidar)
+    env = RosPointNavLidarEnv(0.0, 0.0, use_lidar=use_lidar, lidar_profile=profile)
     log_file = None
     try:
         # Convert the robot-relative goal into the odometry frame using the current pose.
@@ -81,7 +93,8 @@ def main() -> None:
         gx = start.x + args.goal_x * math.cos(start.yaw) - args.goal_y * math.sin(start.yaw)
         gy = start.y + args.goal_x * math.sin(start.yaw) + args.goal_y * math.cos(start.yaw)
         obs, info = env.reset(goal=(gx, gy))
-        print(f"[RL] model={args.model.name} ({'V2 LiDAR' if use_lidar else 'V1B no LiDAR'}) "
+        print(f"[RL] model={args.model.name} "
+              f"({f'LiDAR, {profile} sectors' if use_lidar else 'V1B no LiDAR'}) "
               f"start=({start.x:.3f}, {start.y:.3f}, yaw {math.degrees(start.yaw):.0f} deg) "
               f"goal(odom)=({gx:.3f}, {gy:.3f}) distance={info['distance_to_goal_m']:.3f} m", flush=True)
 

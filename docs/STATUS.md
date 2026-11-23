@@ -1,4 +1,4 @@
-# Project status and next steps (2026-10-25)
+# Project status and next steps (2026-11-01)
 
 For both PCs. Read this first after a break.
 
@@ -46,7 +46,7 @@ All of it is in `Hardware/Turtlebot3/rl_point_nav/`; its README has the full run
   - Run against a fake ROS 2 robot: V1B succeeded at 0.6 m and V2 at 1 m to the left.
 
 ## Not done / unknown
-- V2 obstacle avoidance on the real Burger is not reliable yet (see results below). Needs retraining.
+- V2/V3 alone do not avoid reliably on the real Burger; with the bridge + route re-planning the patrol mission completes (see "CyberScape → RL on the real Burger").
 - No Isaac evaluation numbers for V2 yet.
 - The safety filter blocks forward motion under 0.30 m, but in sim the policy passed about 0.17 m from boxes, so the real robot may stall near obstacles.
 - **API keys must be replaced:** Cohere, SambaNova (LLaMA) and OpenAI. They were exposed in a chat and in the old `ismaileldahshan1/Cyberspace` repo.
@@ -90,11 +90,33 @@ Changes from V2. They come from the real-robot results above and are all in `v3_
 
 `profile.txt` in each model folder says which settings a model needs. Export to `.npz` with `export_policy_numpy.py`, as before.
 
+## CyberScape → RL on the real Burger (hardware, 2026-11-01)
+**Working:** an LLM-generated CyberScape plan (the sim's patrol mission: A (1.5, 0.75) → scan → B (1.5, −0.75) → scan → rotate 90° → report) ran to the end on the real Burger with the sim demo's 3-box layout.
+
+How it runs (`Hardware/Turtlebot3/rl_point_nav/hardware_rl_bridge.py`, on the Pi):
+- It reuses `cyberscape_rl_bridge.Bridge` from the sim demo unchanged (goal alignment, waypoint legs, stall recovery, spin guard) through a small adapter for the real robot.
+- **Route re-planning (default, hardware only so far):** `route_planner.py` maps every LiDAR scan into a grid; A* plans a route to each checkpoint around everything seen; V3 drives 0.5 m legs along it and the route is re-planned after each leg. In the real run the route changed 1× on the way to A and 3× to B. `--no-replan` gives the sim demo's straight legs.
+- Plans come from the Mac's HITL server (`--server http://<MAC_IP>:5001`, same `/get_instruction` flow as `burger_comm_node.py`) or a plan JSON (`--plan`).
+- `--no-safety-filter` publishes straight to `/cmd_vel` (then stop `safety_filter_node.py`). The real run used it.
+- On the Pi, the Isaac env module is stubbed (no gymnasium there); `Bridge` does not need it.
+
+```bash
+python3 hardware_rl_bridge.py --plan rl_live_burger_plan.json --no-safety-filter     # a plan file
+python3 hardware_rl_bridge.py --server http://192.168.137.171:5001 --no-safety-filter # approved CyberScape plans
+```
+Server on the Mac for the hardware: run it from a copy of the repo with its own `config.json` (`robots_in_curr_mission: ["TURTLEBOT3"]`, `plan_parser_llm: cohere`, `final_low: Plans/rl_live_burger_plan.json`), like `run_cyberscape_rl_demo.sh` does, and set `CYBERSCAPE_ISAAC_SENDER` to a no-op script so approval does not start the Isaac sender. The planner needs `langchain-google-genai` and `python-dotenv` in `.venv`.
+
+**V3 alone on the real robot (no bridge):** clear path 3/3; one box on the direct line 3/3; box in its left-swing path: stuck (it keeps choosing FORWARD; the safety filter holds it); two boxes close together: spins ~3.5 turns, then STAY until timeout. Clear goals beyond ~1.5 m: turns left and then STAYs. The sim demo hides this with the bridge's helpers, which is why the bridge is needed on hardware too.
+
+**For V3 retraining (sim side):** obstacles anywhere, including in the policy's own swing path (not only on the direct line); mirrored episodes against the left-turn habit; a penalty for no progress; goals up to the scene size.
+
+**Battery:** below ~11.1 V the wheel node crashes (`There is no status packet!`, then `stack smashing detected`) and after a restart the motors are off (`torque: false` on `/sensor_state`). Charge first. Turn the motors on with `ros2 service call /motor_power std_srvs/srv/SetBool "{data: true}"`.
+
 ## Hardware PC: next steps
-1. Bringup, safety filter and the RL runner all work on the Burger (see the README and the quick reference below). Three SSH windows: bringup, `python3 ~/rl_point_nav/safety_filter_node.py`, RL.
-2. Copy the remaining V2 obstacle-run logs from the Burger (`~/rl_point_nav/logs/`) into `rl_point_nav/results/`. The Mac lost SSH to the Pi near the end; try `sudo iw wlan0 set power_save off` on the Pi.
-3. Repeat obstacle runs about 5–10 times per setup to get success rates.
-4. Test the LLM mission pipeline again on the new IPs (`--server http://192.168.137.40:5001`).
+1. Charge the Burger. Three SSH windows: bringup; safety filter (or stop it for `--no-safety-filter`); RL. Check `torque: true` before driving.
+2. Run the full cycle in server mode: LLM plans → approve → `hardware_rl_bridge.py --server ...` drives.
+3. Repeat the mission with different box layouts; save the window output (the bridge log only goes to the screen).
+4. Optional: write the bridge log and the map/route to a file per mission, for the report.
 5. When it works, open a Pull Request from `hardware` into `main`.
 
 ## Simulation PC: next steps
@@ -129,8 +151,13 @@ git pull origin main
 
 | Device | IP |
 |---|---|
-| Mac | 192.168.137.40 (check with `ipconfig getifaddr en0`) |
-| Burger | 192.168.137.173 |
+| Mac | 192.168.137.171 (check with `ipconfig getifaddr en0`) |
+| Burger 1 (hostname `ubuntu`, `ROS_DOMAIN_ID=30`) | 192.168.137.65 (was .146; find it in the hotspot device list) |
+| Burger 2 (hostname `burger2`, `ROS_DOMAIN_ID=31`, no camera) | 192.168.137.143 (was .127, .191; changes often, scan the hotspot for SSH) |
+
+**Burger 2** runs a byte-for-byte copy of Burger 1's SD card (2026-11-21; image at `~/burger1_card.img` on the Mac, also a backup of Burger 1). After the copy: new hostname, new machine ID (which also gave it a new hotspot IP), `ROS_DOMAIN_ID=31`. Same LDS-02 LiDAR; the OpenCR firmware worked as is (`/scan` 9.3 Hz, `/odom` 20 Hz). At first the wheels didn't turn (not even with the OpenCR SW1/SW2 buttons): the Dynamixel chain cable to motor ID 1 was half out, so that motor's LED never blinked at power-on. Re-seated it; first test 2026-11-23: 0.201 m forward, 43.5° turn as commanded. If a Burger doesn't move with torque on, check that both motor LEDs blink once at power-on.
+
+**Both Burgers drive ball-first** (the caster leads, the camera on Burger 1 faces the caster side, the LiDAR's 0° faces the caster side). That is the reverse of the stock TurtleBot3 and of the simulation, where the caster trails; it is consistent within each robot, so missions work. Seen from the caster side, the motors must be **ID 2 on your left, ID 1 on your right** on both robots. Burger 2 had them the other way round, so it drove toward its LiDAR's back. Fixed 2026-11-23 with ROBOTIS `turtlebot3_setup_motor` (OpenCR core 1.5.3 via `arduino-cli`, one motor connected at a time; a read-only scan option was added to the sketch): ID 1 = drive mode 0, ID 2 = drive mode 1, 1 Mbps, velocity mode. Then the Burger firmware was re-flashed from the Pi (`~/opencr_update/update.sh /dev/ttyACM0 burger.opencr`, V230127R1). Check after any motor work: put a box in front of the LiDAR (0°), drive 10 cm forward, the box must get 10 cm closer. Burger 2 passed (0.510 → 0.408 m). Open question: with the caster leading, the LiDAR sits ~3 cm ahead of the wheel axle instead of behind it, the opposite of the `-0.032 m` mount offset in the V3 profile. The two robots use different domain IDs so a `/cmd_vel` meant for one never moves the other; each runs its own bridge and talks to CyberScape over HTTP. `sudo` on the robots needs the password (not stored here).
 | PuppyPi | 192.168.137.136 |
 
 - **Mac server:** `cd ~/tb3-rl-nav && source .venv/bin/activate && python3 hitl-comm-server.py`

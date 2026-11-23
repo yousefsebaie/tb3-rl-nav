@@ -99,7 +99,11 @@ cd Hardware/Turtlebot3
 scp safety_filter_node.py rl_point_nav/{config.py,ros_point_nav_env.py,ros_point_nav_lidar_env.py,lidar_sectors.py,policy_numpy.py,run_policy_on_hardware.py} ubuntu@<BURGER_IP>:~/rl_point_nav/
 scp rl_point_nav/models/isaac_point_nav_ppo_v1b/checkpoint_15000_steps.npz ubuntu@<BURGER_IP>:~/rl_point_nav/models/v1b.npz
 scp rl_point_nav/models/isaac_point_nav_lidar_ppo_v2/checkpoint_170000_steps.npz ubuntu@<BURGER_IP>:~/rl_point_nav/models/v2.npz
+# V3: keep profile.txt next to the .npz so the runner picks the V3 LiDAR sectors
+ssh ubuntu@<BURGER_IP> "mkdir -p ~/rl_point_nav/models/v3"
+scp rl_point_nav/models/isaac_point_nav_lidar_ppo_v3/{checkpoint_1000000_steps.npz,profile.txt} ubuntu@<BURGER_IP>:~/rl_point_nav/models/v3/
 ```
+The runner reads `profile.txt` next to the model (`v2` or `v3`) and uses the matching sectors in `lidar_sectors.py`: V2 shifts the LiDAR to the old sim mount and uses a ±30° front; V3 uses the real mount and a ±18° front. Without `profile.txt` it assumes `v2`; `--profile` overrides it.
 
 **2. On the Pi, open three SSH terminals.** Run `source /opt/ros/humble/setup.bash` in each one first.
 
@@ -123,6 +127,8 @@ python3 ros_point_nav_env.py --goal-x 1.0 --goal-y 0.0 --action FORWARD
 python3 run_policy_on_hardware.py --model models/v1b.npz --goal-x 1.0 --goal-y 0
 # d) V2, no obstacles, then with one box (~12 cm wide, >= 25 cm tall) on the path
 python3 run_policy_on_hardware.py --model models/v2.npz --goal-x 1.2 --goal-y 0
+# e) V3, same tests (the first line printed should say "v3 sectors")
+python3 run_policy_on_hardware.py --model models/v3/checkpoint_1000000_steps.npz --goal-x 1.2 --goal-y 0
 ```
 `Ctrl-C` always stops the robot. Each run prints `RESULT SUCCESS / COLLISION / TIMEOUT`, the steps and the final distance, and saves every step to `logs/*.csv`. Copy those CSVs into `results/` to compare them with simulation.
 

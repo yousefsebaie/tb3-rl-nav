@@ -22,6 +22,7 @@ from rclpy.context import Context
 from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
+from rclpy.signals import SignalHandlerOptions
 
 try:  # Supports both python -m ... and direct execution of this file.
     from .config import PointNavAction, PointNavConfig
@@ -70,7 +71,10 @@ class RosPointNavEnv(Node):
         self._context = context or rclpy.get_default_context()
         self._owns_context = not rclpy.ok(context=self._context)
         if self._owns_context:
-            rclpy.init(context=self._context)
+            # Without this, rclpy's SIGINT handler shuts the context down before
+            # KeyboardInterrupt reaches step()/close(), so the final zero Twist
+            # cannot be published and the robot is left with its last command.
+            rclpy.init(context=self._context, signal_handler_options=SignalHandlerOptions.NO)
 
         super().__init__("tb03_point_nav_env", context=self._context)
         self.config = config or PointNavConfig()
