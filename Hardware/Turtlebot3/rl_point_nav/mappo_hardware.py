@@ -124,6 +124,145 @@ def merge_teammate_circle(ranges: Sequence[float], angle_min: float, angle_incre
     return merged
 
 
+BODY_RADIUS_AT_SCAN_M = 0.035   # what a LiDAR hits of another Burger at its scan plane: the LDS turret
+
+
+def nearest_ahead(ranges: Sequence[float], angle_min: float, angle_increment: float,
+                  range_min: float, range_max: float, cone_deg: float = 30.0) -> Optional[tuple[float, float]]:
+    """(range m, bearing deg) of the nearest object within +-cone_deg of ahead, None if nothing.
+
+    The bearing is the middle of the rays within 3 cm of the nearest range, so a round
+    object (the other Burger) gives the direction to its centre.
+    """
+    hits = []
+    for i, r in enumerate(ranges):
+        a = (math.degrees(angle_min + i * angle_increment) + 180.0) % 360.0 - 180.0
+        if abs(a) <= cone_deg and math.isfinite(r) and range_min <= r <= range_max and r > 0.0:
+            hits.append((r, a))
+    if not hits:
+        return None
+    r_min = min(r for r, _ in hits)
+    close = [a for r, a in hits if r <= r_min + 0.03]
+    return r_min, sum(close) / len(close)
+
+
+def head_on_starts(seen_by_1: tuple[float, float], seen_by_2: tuple[float, float],
+                   mount_m: float = REAL_MOUNT_M[0]) -> tuple[Pose, Pose]:
+    """Start poses of two Burgers that face each other, from what each LiDAR sees of the other.
+
+    ``seen_by_k`` = (range m, bearing deg) from nearest_ahead() on robot k. Robot 1 defines the
+    shared frame: its centre at (0, 0), facing +x. Returns (start of robot 1, start of robot 2).
+    """
+    (r1, b1), (r2, b2) = seen_by_1, seen_by_2
+    t1, t2 = math.radians(b1), math.radians(b2)
+    reach = 0.5 * (r1 + r2) + BODY_RADIUS_AT_SCAN_M   # my LDS centre -> the other's LDS centre
+    l1 = (mount_m + reach * math.cos(t1), reach * math.sin(t1))   # robot 2's LDS centre, robot 1 frame
+    yaw2 = wrap_to_pi(t1 + math.pi - t2)                               # robot 2 sees robot 1 at b2
+    x2, y2 = l1[0] - mount_m * math.cos(yaw2), l1[1] - mount_m * math.sin(yaw2)
+    return (0.0, 0.0, 0.0), (x2, y2, yaw2)
+
+
+FORWARD, TURN_LEFT, TURN_RIGHT, STAY = 0, 1, 2, 3   # config.PointNavAction
+
+# Follow-the-gap hand-over, train_mappo.gap_assist() (handoff 5.3). Ray counts are converted
+# to degrees: the sim scan had 0.34 deg per ray, the LDS-02 has ~1.55.
+GAP_STUCK_STEPS = 18
+GAP_STUCK_MOVE_M = 0.06
+GAP_MIN_GOAL_M = 0.3
+GAP_COOLDOWN_STEPS = 25
+GAP_HANDBACK_M = 1.2
+GAP_HANDBACK_STEPS = 150
+GAP_FACE_GOAL_DEG = 60.0
+GAP_CONE_DEG = 75.0
+GAP_FREE_BEYOND_M = 0.35
+GAP_NO_RETURN_M = 5.0
+GAP_MEDIAN_DEG = 1.7            # sim: 5 rays
+GAP_MIN_WIDTH_DEG = 2.0         # sim: 6 rays
+GAP_ON_TARGET_DEG = 8.0
+ALIGN_UNTIL_DEG = 15.0          # Goal Interface: turn in place until the goal is this close to ahead
+
+
+def free_gap_heading(ranges: Sequence[float], angle_min: float, angle_increment: float,
+                     goal_bearing_deg: float) -> Optional[float]:
+    """Centre (deg, 0 = ahead, CCW +) of the free gap nearest the goal, None if there is none.
+
+    sim free_gap_heading(): within +-75 deg, no return = far, median filter, a ray is free if it
+    reaches 0.35 m beyond the closest ray in the cone, gaps narrower than ~2 deg are ignored.
+    """
+    inc_deg = abs(math.degrees(angle_increment))
+    rays = []
+    for i, r in enumerate(ranges):
+        az = (math.degrees(angle_min + i * angle_increment) + 180.0) % 360.0 - 180.0
+        rays.append((az, r if math.isfinite(r) and r > 0.0 else GAP_NO_RETURN_M))
+    rays.sort()
+    az = [a for a, _ in rays]
+    r = [v for _, v in rays]
+    k = max(3, 2 * int(round(GAP_MEDIAN_DEG / inc_deg / 2)) + 1)   # odd window, >= 3 to drop LDS dropouts
+    half = k // 2
+    r = [sorted(r[max(0, j - half):j + half + 1])[len(r[max(0, j - half):j + half + 1]) // 2] for j in range(len(r))]
+    cone = [abs(a) <= GAP_CONE_DEG for a in az]
+    if not any(cone):
+        return None
+    floor = min(v for v, c in zip(r, cone) if c)
+    free = [c and v > floor + GAP_FREE_BEYOND_M for v, c in zip(r, cone)]
+    min_rays = max(1, math.ceil(GAP_MIN_WIDTH_DEG / inc_deg))
+    best, best_cost, j = None, math.inf, 0
+    while j < len(az):
+        if free[j]:
+            start = j
+            while j < len(az) and free[j]:
+                j += 1
+            if j - start >= min_rays:
+                centre = 0.5 * (az[start] + az[j - 1])
+                cost = abs(centre - goal_bearing_deg)
+                if cost < best_cost:
+                    best, best_cost = centre, cost
+        j += 1
+    return best
+
+
+class GapAssist:
+    """One robot's follow-the-gap hand-over state (sim gap_assist(), per robot)."""
+
+    def __init__(self) -> None:
+        self.history: list[tuple[float, float]] = []
+        self.mode: Optional[tuple[float, float, int]] = None   # (entry x, entry y, steps) while handed over
+        self.cooldown = 0
+        self.handovers = 0
+
+    def reset(self) -> None:
+        self.history.clear()
+        self.mode = None
+
+    def decide(self, policy_action: int, xy: tuple[float, float], goal_dist_m: float,
+               goal_bearing_deg: float, gap_heading: Callable[[], Optional[float]]) -> tuple[int, str]:
+        """Final action and why ("policy", "gap ...")."""
+        self.history = (self.history + [xy])[-GAP_STUCK_STEPS:]
+        self.cooldown = max(0, self.cooldown - 1)
+        if self.mode is None:
+            h = self.history
+            stuck = (len(h) == GAP_STUCK_STEPS and math.dist(h[0], h[-1]) < GAP_STUCK_MOVE_M
+                     and goal_dist_m > GAP_MIN_GOAL_M and self.cooldown == 0)
+            if not stuck:
+                return policy_action, "policy"
+            self.mode = (xy[0], xy[1], 0)
+            self.handovers += 1
+        ex, ey, n = self.mode
+        if n >= GAP_HANDBACK_STEPS or math.dist((ex, ey), xy) >= GAP_HANDBACK_M:
+            self.mode, self.cooldown = None, GAP_COOLDOWN_STEPS
+            self.history.clear()
+            return policy_action, "gap handback"
+        self.mode = (ex, ey, n + 1)
+        if abs(goal_bearing_deg) > GAP_FACE_GOAL_DEG:
+            return (TURN_LEFT if goal_bearing_deg > 0 else TURN_RIGHT), "gap face goal"
+        target = gap_heading()
+        if target is None:
+            return policy_action, "gap none"
+        if abs(target) > GAP_ON_TARGET_DEG:
+            return (TURN_LEFT if target > 0 else TURN_RIGHT), f"gap turn {target:+.0f}"
+        return FORWARD, f"gap forward {target:+.0f}"
+
+
 class PoseLink:
     """Shared-frame pose exchange between the two Pis over UDP.
 

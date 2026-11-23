@@ -16,8 +16,9 @@ import numpy as np
 
 import lidar_sectors
 from lidar_sectors import STOCK_MOUNT_M, sector_names, sim_matched_sectors
-from mappo_hardware import (FAR_TEAMMATE, V5_INPUT_NAMES, PoseLink, SharedFrame, lidar_pose,
-                            merge_teammate_circle, teammate_inputs)
+from mappo_hardware import (BODY_RADIUS_AT_SCAN_M, FAR_TEAMMATE, FORWARD, GAP_STUCK_STEPS, STAY, TURN_LEFT,
+                            V5_INPUT_NAMES, GapAssist, PoseLink, SharedFrame, free_gap_heading, head_on_starts,
+                            lidar_pose, merge_teammate_circle, teammate_inputs)
 
 HERE = Path(__file__).resolve().parent
 V5_MODEL = HERE / "models" / "mappo_v5_kl05" / "best_model.npz"
@@ -127,6 +128,52 @@ class V5InputTests(unittest.TestCase):
             agree += v5.act(six + extra + [1.0, *FAR_TEAMMATE]) == v4.act(six)
         print(f"\n  V5 (far teammate) chose V4's action in {agree / 20:.1f}% of 2000 random states")
         self.assertGreater(agree, 1000)
+
+
+class GapAndPlacementTests(unittest.TestCase):
+    def test_free_gap_is_found_and_closest_to_the_goal_wins(self):
+        n = 232
+        inc = 2 * math.pi / n
+        ranges = []
+        for i in range(n):
+            a = (math.degrees(i * inc) + 180) % 360 - 180
+            ranges.append(3.0 if 20 <= a <= 35 or -60 <= a <= -45 else 0.5)
+        self.assertAlmostEqual(free_gap_heading(ranges, 0.0, inc, 0.0), 27.0, delta=2.0)
+        self.assertAlmostEqual(free_gap_heading(ranges, 0.0, inc, -50.0), -52.0, delta=2.0)
+        self.assertIsNone(free_gap_heading([0.5] * n, 0.0, inc, 0.0))
+
+    def test_gap_assist_hands_over_when_stuck_and_back_after_1_2_m(self):
+        gap = GapAssist()
+        for _ in range(GAP_STUCK_STEPS - 1):
+            self.assertEqual(gap.decide(STAY, (0.0, 0.0), 1.0, 0.0, lambda: 30.0), (STAY, "policy"))
+        action, why = gap.decide(STAY, (0.0, 0.0), 1.0, 0.0, lambda: 30.0)
+        self.assertEqual((action, why), (TURN_LEFT, "gap turn +30"))
+        self.assertEqual(gap.decide(STAY, (0.5, 0.0), 1.0, 0.0, lambda: 2.0), (FORWARD, "gap forward +2"))
+        self.assertEqual(gap.decide(STAY, (0.0, 0.0), 1.0, 90.0, lambda: 2.0), (TURN_LEFT, "gap face goal"))
+        self.assertEqual(gap.decide(STAY, (1.3, 0.0), 1.0, 0.0, lambda: 2.0), (STAY, "gap handback"))
+        self.assertEqual(gap.handovers, 1)
+
+    def test_not_stuck_near_the_goal(self):
+        gap = GapAssist()
+        for _ in range(GAP_STUCK_STEPS + 5):
+            self.assertEqual(gap.decide(STAY, (0.0, 0.0), 0.2, 0.0, lambda: 30.0)[1], "policy")
+
+    def test_head_on_placement_from_the_two_lidars(self):
+        m = lidar_sectors.REAL_MOUNT_M[0]
+        for x2, y2, yaw2_deg in ((1.8, 0.0, 180.0), (1.7, 0.15, 170.0), (2.0, -0.1, -165.0)):
+            yaw2 = math.radians(yaw2_deg)
+            l1 = (m, 0.0)
+            l2 = (x2 + m * math.cos(yaw2), y2 + m * math.sin(yaw2))
+            reach = math.dist(l1, l2)
+            seen_by_1 = (reach - BODY_RADIUS_AT_SCAN_M, math.degrees(math.atan2(l2[1] - l1[1], l2[0] - l1[0])))
+            back = math.atan2(l1[1] - l2[1], l1[0] - l2[0]) - yaw2
+            seen_by_2 = (reach - BODY_RADIUS_AT_SCAN_M, math.degrees(math.atan2(math.sin(back), math.cos(back))))
+            start1, start2 = head_on_starts(seen_by_1, seen_by_2)
+            self.assertEqual(start1, (0.0, 0.0, 0.0))
+            self.assertAlmostEqual(start2[0], x2)
+            self.assertAlmostEqual(start2[1], y2)
+            self.assertAlmostEqual(math.cos(start2[2]), math.cos(yaw2))
+            self.assertAlmostEqual(math.sin(start2[2]), math.sin(yaw2))
 
 
 class FrameAndLinkTests(unittest.TestCase):
