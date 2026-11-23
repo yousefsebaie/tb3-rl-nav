@@ -1,0 +1,65 @@
+{
+    "target": "MULTI_TURTLEBOT",
+    "phases": [
+        {"target": "TURTLEBOT3_1", "phase_number": 1, "state": "Both robots outside the lab door, side by side. Rubble inside: box, trash bin, three fallen chairs, a bean bag. Survivor BOB reported 4.2 m in, 1.2 m left.",
+         "phase_target": "Enter through the door (one robot at a time).", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((0.6, 0.0))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 1, "state": "Outside the door.", "phase_target": "Wait outside while TurtleBot3_1 enters.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 2, "state": "Just inside the door.", "phase_target": "Pass between the box and the trash bin.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((1.4, 0.42))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 2, "state": "Outside the door.", "phase_target": "Enter through the door.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((0.6, 0.0))"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 3, "state": "Between the box and the trash bin.", "phase_target": "Get past the box.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((1.9, -0.06))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 3, "state": "Just inside the door.", "phase_target": "Pass right of the box.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((1.4, -0.6))"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 4, "state": "Past the box.", "phase_target": "Pass the gap between the middle and right chairs.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((2.5, -0.15))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 4, "state": "Right of the box.", "phase_target": "Pass right of the right chair.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((2.4, -1.38))"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 5, "state": "Between the chairs.", "phase_target": "Head left of the bean bag towards the survivor.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((3.3, 0.3))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 5, "state": "Right of the right chair.", "phase_target": "Search the east side.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((3.3, -1.2))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 6, "state": "Left of the bean bag.", "phase_target": "Reach the survivor BOB, confirm and report.", "inputs": [], "outputs": {"survivor_location": {"type": "string"}},
+         "low_level_plan": "TurtleBot3_1.move_to_point((3.6, 0.96))\nTurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('survivor found near (4.2, 1.2)')"},
+        {"target": "TURTLEBOT3_2", "phase_number": 6, "state": "East side searched.", "phase_target": "Hold while TurtleBot3_1 confirms the survivor.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 7, "state": "At the survivor.", "phase_target": "Head back.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((3.3, 0.3))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 7, "state": "East side.", "phase_target": "Head back.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((2.4, -1.38))"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 8, "state": "Left of the bean bag.", "phase_target": "Back through the chair gap.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((2.5, -0.15))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 8, "state": "Right of the right chair.", "phase_target": "Back right of the box.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((1.4, -0.6))"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 9, "state": "Between the chairs.", "phase_target": "Back past the box.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((1.9, -0.06))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 9, "state": "Right of the box.", "phase_target": "Back to just inside the door.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.move_to_point((0.6, 0.0))"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 10, "state": "Past the box.", "phase_target": "Back between the box and the trash bin.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((1.4, 0.42))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 10, "state": "Just inside the door.", "phase_target": "Exit to the start outside the door.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.return_to_base()"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 11, "state": "Between the box and the trash bin.", "phase_target": "Back to just inside the door.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_1.move_to_point((0.6, 0.0))"},
+        {"target": "TURTLEBOT3_2", "phase_number": 11, "state": "Outside the door.", "phase_target": "Hold.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
+
+        {"target": "TURTLEBOT3_1", "phase_number": 12, "state": "Just inside the door.", "phase_target": "Exit to the start and report the mission complete.", "inputs": [], "outputs": {"mission_status": {"type": "string"}},
+         "low_level_plan": "TurtleBot3_1.return_to_base()\nTurtleBot3_1.communicate_with_apm('mission complete: survivor found, both robots out')"},
+        {"target": "TURTLEBOT3_2", "phase_number": 12, "state": "Outside the door.", "phase_target": "Hold.", "inputs": [], "outputs": [],
+         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"}
+    ]
+}
