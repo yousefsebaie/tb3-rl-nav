@@ -14,6 +14,9 @@ or written.
   --anti-spin     reward shaping against turning in place / standing still
                   (spin_penalty 0.03 per turn after 8 in a row, stay_penalty 0.02);
                   same observation, so it can fine-tune an existing V3 model
+  --random-obstacles  harder, more random layouts: up to 6 boxes (1 blocking + 0-5
+                  scattered up to 0.8 m around the route), 10-45 cm wide; same
+                  observation, so it can fine-tune an existing V3 model
   --learning-rate / --ent-coef   override PPO's 3e-4 / 0.01 (e.g. lower both to
                   fine-tune a plateaued run with --resume)
   --resume PATH   continue from a checkpoint .zip; --timesteps is then the TOTAL
@@ -55,6 +58,7 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--ent-coef", type=float, default=0.01)
     parser.add_argument("--anti-spin", action="store_true")
+    parser.add_argument("--random-obstacles", action="store_true")
     args = parser.parse_args()
     output_dir = MODELS_DIR / args.output_name
 
@@ -125,6 +129,9 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[TB03_PPO_V2] Creating {'GUI' if args.gui else 'headless'} V2 environment", flush=True)
     shaping = dict(spin_penalty=0.03, stay_penalty=0.02) if args.anti_spin else {}
+    if args.random_obstacles:
+        shaping.update(obstacle_count=6, max_distractors=5, distractor_margin_m=0.80,
+                       obstacle_size_range_m=(0.10, 0.45))
     lidar_config = (v3_lidar_config(hide_robot_visuals=True, **shaping) if args.profile == "v3"
                     else IsaacLidarNavConfig(hide_robot_visuals=True, **shaping))
     print(f"[TB03_PPO_V2] profile={args.profile} {lidar_config}", flush=True)

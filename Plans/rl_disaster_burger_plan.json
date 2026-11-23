@@ -22,15 +22,15 @@
         {
             "target": "TURTLEBOT3",
             "phase_number": 3,
-            "state": "Both survivors located.",
-            "phase_target": "Face the room and report search complete.",
+            "state": "Both survivors located and marked.",
+            "phase_target": "Return to the responder base at (0, 0) and report the survivors found.",
             "inputs": [],
             "outputs": {
                 "mission_status": {
                     "type": "string"
                 }
             },
-            "low_level_plan": "TurtleBot3.rotate(90)\nTurtleBot3.communicate_with_apm('search complete, 2 survivors located')"
+            "low_level_plan": "TurtleBot3.move_to_point((0.0, 0.0))\nTurtleBot3.communicate_with_apm('back at base, search complete')"
         }
     ]
 }

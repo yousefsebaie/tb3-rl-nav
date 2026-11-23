@@ -1,0 +1,4 @@
+{"event": "mission_start", "sim_s": 0.0, "sim_abs_s": 2109.083443330601, "wall_s": 6.399000994861126e-06, "tasks": ["reach_goal"], "scenario_id": 5013, "obstacles": 2, "max_obstacle_width_m": 0.328, "goal_distance_m": 1.201}
+{"event": "task_start", "sim_s": 0.0, "sim_abs_s": 2109.083443330601, "wall_s": 1.5655066817998886e-05, "task": "reach_goal", "robot": "robot_0"}
+{"event": "task_failed", "sim_s": 35.916668539866805, "sim_abs_s": 2145.0001118704677, "wall_s": 25.424538368009962, "task": "reach_goal", "reason": "obstacle contact after 65 actions"}
+{"event": "mission_end", "sim_s": 35.916668539866805, "sim_abs_s": 2145.0001118704677, "wall_s": 25.42455295997206, "status": "collision", "reason": "obstacle contact after 65 actions"}

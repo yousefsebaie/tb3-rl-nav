@@ -1,0 +1,104 @@
+{
+    "target": "MULTI_TURTLEBOT",
+    "phases": [
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 1,
+            "state": "Earthquake in a collapsed building. Both TurtleBot3 Burgers at the responder base: TurtleBot3_1 at (-2.3, 1.95) in front of the rubble corridor, TurtleBot3_2 at (-1.2, 1.95).",
+            "phase_target": "Drive down the 0.75 m rubble corridor to the hub at (-2.3, 0.5).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-2.3, 0.5))\nTurtleBot3_1.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 1,
+            "state": "TurtleBot3_2 at the responder base (-1.2, 1.95).",
+            "phase_target": "Search the east sector at (-1.0, 0.9), confirm the reported survivor with the camera and report.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.0, 0.9))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')\nTurtleBot3_2.communicate_with_apm('survivor found in the east sector')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 2,
+            "state": "TurtleBot3_1 at the hub below the corridor.",
+            "phase_target": "Search the west sector at (-3.2, 0.6), passing under the corridor walls, confirm the survivor and report.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-3.2, 0.6))\nTurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('survivor found in the west sector')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 2,
+            "state": "TurtleBot3_2 in the east sector, survivor marked.",
+            "phase_target": "Drive to the east doorway of the fallen wall at (-1.4, 0.5).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.4, 0.5))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 3,
+            "state": "TurtleBot3_1 in the west sector, above the west doorway.",
+            "phase_target": "Pass the 0.8 m west doorway into the west room at (-3.0, -0.55), look for trapped people and report.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-3.0, -0.55))\nTurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('survivor found in the west room')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 3,
+            "state": "TurtleBot3_2 in front of the east doorway.",
+            "phase_target": "Pass the 0.8 m east doorway into the east room at (-1.4, -0.55), look for trapped people and report.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.4, -0.55))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')\nTurtleBot3_2.communicate_with_apm('survivor found in the east room')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 4,
+            "state": "TurtleBot3_1 in the west room next to a trapped survivor.",
+            "phase_target": "Stay with the survivor.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.communicate_with_apm('staying with the survivor in the west room')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 4,
+            "state": "TurtleBot3_2 in the east room, survivor marked.",
+            "phase_target": "Leave the east room back through the east doorway to (-1.4, 0.5).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.4, 0.5))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 5,
+            "state": "TurtleBot3_2 above the east doorway.",
+            "phase_target": "Drive along the fallen wall to the hub at (-2.3, 0.5).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-2.3, 0.5))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 6,
+            "state": "TurtleBot3_2 at the hub below the corridor.",
+            "phase_target": "Drive up the rubble corridor back to the responder base at (-2.3, 1.95) to guide the rescue team.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-2.3, 1.95))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 7,
+            "state": "TurtleBot3_2 at the responder base, TurtleBot3_1 with the survivor in the west room.",
+            "phase_target": "Report the mission complete.",
+            "inputs": [],
+            "outputs": {"mission_status": {"type": "string"}},
+            "low_level_plan": "TurtleBot3_2.communicate_with_apm('4 survivors located, rescue team guided in, search complete')"
+        }
+    ]
+}

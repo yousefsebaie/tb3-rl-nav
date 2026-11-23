@@ -1,19 +1,17 @@
 Phase 1:
-TurtleBot3.wait_for_signal()
-TurtleBot3.communicate_with_apm('Survivor 2 coordinates')
+TurtleBot3.move_to_point((1.5, 0.75))
+TurtleBot3.scan_with_lidar()
+TurtleBot3.detect_with_camera('survivor')
 
 Phase 2:
+TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')
+TurtleBot3.move_to_point((1.5, -0.75))
 TurtleBot3.scan_with_lidar()
-TurtleBot3.move_to_point((8.0, 3.0))
-TurtleBot3.detect_with_camera('Survivor 2')
+TurtleBot3.detect_with_camera('survivor')
 
 Phase 3:
-TurtleBot3.retrieve_object('supplies')
-TurtleBot3.detect_with_camera('Survivor 2')
-TurtleBot3.communicate_with_apm('Supplies delivered to Survivor 2')
+TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')
+TurtleBot3.rotate(90)
 
 Phase 4:
-TurtleBot3.scan_with_lidar()
-TurtleBot3.rotate(180)
-TurtleBot3.move_to_point((0.0, 0.0))
-TurtleBot3.return_to_base()
+TurtleBot3.communicate_with_apm('search complete, 2 survivors located')

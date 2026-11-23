@@ -1,0 +1,1 @@
+Run the TurtleBot3 forward for 40 seconds at speed 2 while the Puppy robot navigates to waypoint (1.3, 1.3) in parallel using LiDAR.

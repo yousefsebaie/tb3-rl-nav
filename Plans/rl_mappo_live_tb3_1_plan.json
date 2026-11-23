@@ -1,0 +1,50 @@
+{
+    "target": "TURTLEBOT3_1",
+    "phases": [
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 1,
+            "state": "TurtleBot3_1 is at the responder base, ready to start its mission to search for survivors in the west sector and west room of a partially collapsed building.",
+            "phase_target": "Navigate through the rubble corridor to the hub at the south end.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-2.3, 0.5))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 2,
+            "state": "TurtleBot3_1 has reached the hub and is preparing for the west sector inspection. Its position is (-2.3, 0.5).",
+            "phase_target": "Perform a scan of the west sector inspection point and detect survivors.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('west sector inspection complete')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 3,
+            "state": "TurtleBot3_1 has finished the west sector inspection and is equipped with LiDAR and a camera for the next phase.",
+            "phase_target": "Navigate to the west doorway of the fallen wall and enter the west room.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-3.2, 0.6))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 4,
+            "state": "TurtleBot3_1 has arrived at the west room and is about to start the survivor search. Its location is (-3.0, -0.55).",
+            "phase_target": "Conduct a detailed scan of the west room inspection point and confirm the survivor.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((-3.0, -0.55))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 5,
+            "state": "TurtleBot3_1 has successfully located and confirmed the survivor in the west room and is at the inspection point.",
+            "phase_target": "Report the mission status to the APM and wait for further instructions or the rescue team.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.scan_with_lidar()\nTurtleBot3_1.detect_with_camera('survivor')\nTurtleBot3_1.communicate_with_apm('west room inspection complete')"
+        }
+    ]
+}

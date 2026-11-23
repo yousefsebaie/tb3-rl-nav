@@ -1,0 +1,116 @@
+{
+  "condition": "robustness",
+  "scenarios": [
+    7000,
+    7001,
+    7002,
+    7003,
+    7004,
+    7005,
+    7006,
+    7007,
+    7008,
+    7009,
+    7010,
+    7011,
+    7012,
+    7013,
+    7014,
+    7015,
+    7016,
+    7017,
+    7018,
+    7019
+  ],
+  "controllers": [
+    "b0",
+    "rule",
+    "ppo"
+  ],
+  "model": "/home/g8/tb3-rl-nav/Hardware/Turtlebot3/rl_point_nav/models/isaac_point_nav_lidar_ppo_v3/checkpoint_1000000_steps.zip",
+  "scene": "/home/g8/Desktop/FInalSceneDemo_realsize.usd",
+  "physics_dt_s": 0.016666666666666666,
+  "budget_s": 120.0,
+  "delay_probability": 0.15,
+  "isaac_config": {
+    "wheel_radius_m": 0.033,
+    "wheel_base_m": 0.16,
+    "max_linear_speed_mps": 0.22,
+    "max_angular_speed_radps": 1.0,
+    "forward_speed_mps": 0.05,
+    "turn_speed_radps": 0.8,
+    "forward_frames": 30,
+    "turn_frames": 15,
+    "stay_frames": 15,
+    "settle_frames": 8,
+    "reset_position_tolerance_m": 0.01,
+    "reset_yaw_tolerance_rad": 0.02,
+    "goal_tolerance_m": 0.05,
+    "min_goal_distance_m": 0.5,
+    "max_goal_distance_m": 2.0
+  },
+  "lidar_config": {
+    "front_sector_deg": [
+      -18.0,
+      18.0
+    ],
+    "left_sector_deg": [
+      18.0,
+      120.0
+    ],
+    "right_sector_deg": [
+      -120.0,
+      -18.0
+    ],
+    "clearance_normalization_m": 1.0,
+    "self_mask_max_range_m": 0.6,
+    "self_mask_frames": 30,
+    "scan_wait_max_frames": 600,
+    "scan_stable_frames": 10,
+    "reset_scan_frames": 6,
+    "obstacle_count": 4,
+    "obstacle_size_xy_m": 0.12,
+    "obstacle_height_m": 0.5,
+    "park_origin_m": [
+      1000.0,
+      1000.0
+    ],
+    "park_spacing_m": 5.0,
+    "blocking_probability": 0.7,
+    "max_distractors": 2,
+    "blocking_lateral_offset_m": 0.1,
+    "min_obstacle_start_clearance_m": 0.4,
+    "min_obstacle_goal_clearance_m": 0.3,
+    "min_obstacle_spacing_m": 0.3,
+    "distractor_margin_m": 0.4,
+    "placement_attempts": 200,
+    "robot_radius_m": 0.105,
+    "collision_penalty": 10.0,
+    "obstacle_size_range_m": [
+      0.12,
+      0.4
+    ],
+    "proximity_threshold_m": 0.3,
+    "proximity_penalty_max": 0.3,
+    "lidar_noise_std_m": 0.03,
+    "lidar_ray_dropout": 0.2,
+    "lidar_sector_dropout": 0.1,
+    "lidar_min_valid_m": 0.15,
+    "ambiguous_close_m": 0.25,
+    "spin_penalty": 0.0,
+    "spin_free_turns": 8,
+    "stay_penalty": 0.0,
+    "hide_robot_visuals": true,
+    "robot_proxy_height_m": 0.02,
+    "show_footprint_disc": false
+  },
+  "max_episode_steps": 250,
+  "action_semantics": {
+    "FORWARD": 0,
+    "TURN_LEFT": 1,
+    "TURN_RIGHT": 2,
+    "STAY": 3
+  },
+  "python": "3.11.13",
+  "started": "2026-11-01 21:27:15"
+}

@@ -1,0 +1,21 @@
+mission_id,controller,status,success,reason,tasks_required,tasks_completed,makespan_sim_s,mean_task_completion_sim_s,mean_robot_finish_sim_s,termination_elapsed_sim_s,wall_elapsed_s,rtf,path_length_m,decisions,inference_p50_ms,inference_p95_ms,inference_p99_ms,inference_mean_ms,condition,scenario_id,obstacles,max_obstacle_width_m,goal_distance_m,initial_heading_offset_deg,turn_reversals,final_distance_m,path_efficiency,team_return,physics_frames,frames_x_dt_s
+generalization_6000,ppo,success,True,,1,1,70.117,70.117,70.117,70.117,55.463,1.2642,1.764,119,0.668,1.039,1.753,0.741,generalization,6000,3,0.395,1.201,26.9,1,0.04,0.681,14.406,4207,70.117
+generalization_6001,ppo,timeout,False,time budget,1,0,,,,120.05,93.136,1.289,1.908,246,0.677,0.959,1.523,0.722,generalization,6001,1,0.336,1.6,83.0,51,0.5,,3.101,7203,120.05
+generalization_6002,ppo,success,True,,1,1,78.567,78.567,78.567,78.567,61.283,1.282,1.724,143,0.671,1.189,1.508,0.736,generalization,6002,2,0.235,1.201,55.8,12,0.045,0.697,14.212,4714,78.567
+generalization_6003,ppo,success,True,,1,1,65.183,65.183,65.183,65.183,50.471,1.2915,1.605,112,0.674,0.972,1.48,0.729,generalization,6003,2,0.285,1.001,-0.3,2,0.043,0.623,13.484,3911,65.183
+generalization_6004,ppo,success,True,,1,1,26.65,26.65,26.65,26.65,20.894,1.2755,0.599,48,0.702,0.881,1.188,0.732,generalization,6004,2,0.32,0.601,-70.2,4,0.047,1.003,12.234,1599,26.65
+generalization_6005,ppo,success,True,,1,1,65.033,65.033,65.033,65.033,50.777,1.2808,1.277,124,0.671,0.985,1.47,0.721,generalization,6005,2,0.355,1.2,25.8,20,0.044,0.94,14.48,3902,65.033
+generalization_6006,ppo,success,True,,1,1,70.517,70.517,70.517,70.517,54.508,1.2937,1.715,122,0.671,0.876,1.141,0.689,generalization,6006,0,0.0,1.6,89.7,11,0.047,0.933,16.357,4231,70.517
+generalization_6007,ppo,collision,False,obstacle contact after 66 actions,1,0,,,,35.55,27.388,1.298,0.746,66,0.665,0.924,1.082,0.695,generalization,6007,3,0.341,1.2,26.6,9,0.732,,-8.371,2133,35.55
+generalization_6008,ppo,success,True,,1,1,68.183,68.183,68.183,68.183,53.28,1.2797,1.42,127,0.664,0.92,1.404,0.697,generalization,6008,2,0.382,1.201,-36.1,15,0.047,0.846,14.408,4091,68.183
+generalization_6009,ppo,collision,False,obstacle contact after 62 actions,1,0,,,,32.267,24.825,1.2998,0.622,62,0.688,1.096,1.261,0.728,generalization,6009,3,0.269,1.001,-38.6,5,0.567,,-8.473,1936,32.267
+generalization_6010,ppo,collision,False,obstacle contact after 57 actions,1,0,,,,31.6,24.804,1.274,0.708,57,0.686,1.038,1.682,0.752,generalization,6010,2,0.289,1.201,31.2,13,0.623,,-7.74,1896,31.6
+generalization_6011,ppo,success,True,,1,1,71.817,71.817,71.817,71.817,56.937,1.2613,1.648,128,0.684,1.0,1.576,0.738,generalization,6011,1,0.28,1.2,-30.0,18,0.037,0.728,14.379,4309,71.817
+generalization_6012,ppo,success,True,,1,1,71.3,71.3,71.3,71.3,58.303,1.2229,1.664,126,0.693,1.016,1.507,0.753,generalization,6012,3,0.396,1.201,33.1,14,0.036,0.722,14.399,4278,71.3
+generalization_6013,ppo,success,True,,1,1,43.9,43.9,43.9,43.9,34.741,1.2636,1.013,78,0.665,0.885,1.031,0.679,generalization,6013,0,0.0,1.001,30.5,5,0.038,0.988,13.935,2634,43.9
+generalization_6014,ppo,success,True,,1,1,88.15,88.15,88.15,88.15,70.388,1.2523,1.736,168,0.69,1.019,1.52,0.74,generalization,6014,1,0.389,1.202,72.6,15,0.036,0.692,14.066,5289,88.15
+generalization_6015,ppo,success,True,,1,1,76.083,76.083,76.083,76.083,60.314,1.2615,1.498,145,0.68,0.999,1.255,0.717,generalization,6015,1,0.296,1.201,-45.5,25,0.047,0.802,14.249,4565,76.083
+generalization_6016,ppo,success,True,,1,1,43.133,43.133,43.133,43.133,34.042,1.2671,1.012,76,0.698,0.985,1.758,0.761,generalization,6016,0,0.0,1.001,18.3,5,0.039,0.989,13.945,2588,43.133
+generalization_6017,ppo,success,True,,1,1,56.367,56.367,56.367,56.367,45.186,1.2474,1.197,104,0.683,1.045,1.482,0.748,generalization,6017,0,0.0,1.202,-81.9,10,0.046,1.004,14.651,3382,56.367
+generalization_6018,ppo,success,True,,1,1,53.55,53.55,53.55,53.55,42.336,1.2649,1.213,96,0.684,0.907,1.092,0.718,generalization,6018,3,0.334,1.002,77.0,4,0.039,0.826,13.745,3213,53.55
+generalization_6019,ppo,success,True,,1,1,27.933,27.933,27.933,27.933,22.184,1.2592,0.583,52,0.683,0.898,1.173,0.729,generalization,6019,2,0.324,0.601,-80.6,4,0.039,1.03,12.252,1676,27.933

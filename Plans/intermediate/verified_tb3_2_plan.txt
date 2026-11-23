@@ -1,0 +1,48 @@
+## Revised Plan:
+
+### TurtleBot3_1:
+
+Phase 1:
+TurtleBot3_1.move_to_point((-2.3, 0.5))
+
+Phase 2:
+TurtleBot3_1.move_to_point((-3.2, 0.6))
+TurtleBot3_1.scan_with_lidar()
+TurtleBot3_1.detect_with_camera('survivor')
+TurtleBot3_1.communicate_with_apm('survivor found in west sector')
+
+Phase 3:
+TurtleBot3_1.move_to_point((-3.0, -0.55))
+TurtleBot3_1.scan_with_lidar()
+TurtleBot3_1.detect_with_camera('survivor')
+TurtleBot3_1.communicate_with_apm('survivor found in west room')
+
+### TurtleBot3_2:
+
+Phase 1:
+TurtleBot3_2.move_to_point((-1.0, 0.9))
+TurtleBot3_2.scan_with_lidar()
+TurtleBot3_2.detect_with_camera('survivor')
+TurtleBot3_2.communicate_with_apm('survivor found in east sector')
+
+Phase 2:
+TurtleBot3_2.move_to_point((-1.4, 0.5))
+TurtleBot3_2.scan_with_lidar()
+TurtleBot3_2.detect_with_camera('survivor')
+TurtleBot3_2.communicate_with_apm('survivor found in east doorway')
+
+Phase 3:
+TurtleBot3_2.move_to_point((-1.4, -0.55))
+TurtleBot3_2.scan_with_lidar()
+TurtleBot3_2.detect_with_camera('survivor')
+TurtleBot3_2.communicate_with_apm('survivor found in east room')
+
+Phase 4:
+TurtleBot3_2.move_to_point((-1.4, 0.5))
+
+Phase 5:
+TurtleBot3_2.move_to_point((-2.3, 0.5))
+
+Phase 6:
+TurtleBot3_2.move_to_point((-2.3, 1.95))
+TurtleBot3_2.communicate_with_apm('search complete')

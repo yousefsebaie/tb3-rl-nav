@@ -1,0 +1,10 @@
+{
+  "critic": "central",
+  "robots": 2,
+  "init": "/home/g8/tb3-rl-nav/Hardware/Turtlebot3/rl_point_nav/models/isaac_point_nav_lidar_ppo_v3_random/checkpoint_1570000_steps.zip",
+  "learning_rate": 5e-05,
+  "ent_coef": 0.005,
+  "seed": 42,
+  "task": "coop3",
+  "resume": "models/mappo_v4_coop/best_model.pt"
+}

@@ -75,7 +75,7 @@ def render(log: Path, models: Path | None) -> str:
         if trend:
             lines.append("  success trend (every 25 episodes): " + " ".join(f"{100 * v:.0f}%" for v in trend))
     if models is not None and models.is_dir():
-        checkpoints = sorted(models.glob("checkpoint_*_steps.zip"),
+        checkpoints = sorted([*models.glob("checkpoint_*_steps.zip"), *models.glob("checkpoint_*_steps.pt")],
                              key=lambda p: int(re.search(r"(\d+)_steps", p.name).group(1)))
         if checkpoints:
             lines += ["", f"Latest checkpoint: {checkpoints[-1]}"]

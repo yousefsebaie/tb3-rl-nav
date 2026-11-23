@@ -1,0 +1,5 @@
+{"event": "mission_start", "sim_s": 0.0, "sim_abs_s": 4698.050245022401, "wall_s": 6.983987987041473e-06, "tasks": ["reach_goal"], "condition": "robustness", "scenario_id": 7017, "obstacles": 2, "max_obstacle_width_m": 0.209, "goal_distance_m": 1.001, "initial_heading_offset_deg": 0.0}
+{"event": "task_start", "sim_s": 0.0, "sim_abs_s": 4698.050245022401, "wall_s": 1.723493915051222e-05, "task": "reach_goal", "robot": "robot_0"}
+{"event": "task_complete", "sim_s": 55.18333621136844, "sim_abs_s": 4753.23358123377, "wall_s": 70.70678092597518, "task": "reach_goal", "robot": "robot_0", "decisions": 97}
+{"event": "robot_complete", "sim_s": 55.18333621136844, "sim_abs_s": 4753.23358123377, "wall_s": 70.7067902990384, "robot": "robot_0"}
+{"event": "mission_end", "sim_s": 55.18333621136844, "sim_abs_s": 4753.23358123377, "wall_s": 70.70708928897511, "status": "success", "reason": ""}

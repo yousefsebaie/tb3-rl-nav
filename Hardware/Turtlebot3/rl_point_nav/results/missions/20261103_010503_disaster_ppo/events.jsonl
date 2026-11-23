@@ -1,0 +1,39 @@
+{"event": "mission_start", "sim_s": 0.0, "sim_abs_s": 1.5500000808387995, "wall_s": 1.379696186631918e-05, "tasks": ["t00 TurtleBot3.move_to_point((1.5, 0.75))", "t01 TurtleBot3.scan_with_lidar()", "t02 TurtleBot3.detect_with_camera('survivor')", "t03 TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')", "t04 TurtleBot3.move_to_point((1.5, -0.75))", "t05 TurtleBot3.scan_with_lidar()", "t06 TurtleBot3.detect_with_camera('survivor')", "t07 TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')", "t08 TurtleBot3.move_to_point((0.0, 0.0))", "t09 TurtleBot3.communicate_with_apm('back at base, search complete')"], "scenario": "disaster", "spin_guard": true, "sensor_noise": false, "model": "checkpoint_1000000_steps.zip", "plan": "rl_disaster_burger_plan.json", "replan": true, "throttle": 1.0}
+{"event": "task_start", "sim_s": 0.0, "sim_abs_s": 1.5500000808387995, "wall_s": 0.0011800769716501236, "task": "t00 TurtleBot3.move_to_point((1.5, 0.75))", "robot": "turtlebot3"}
+{"event": "goal_alignment", "sim_s": 0.20000001043081284, "sim_abs_s": 1.7500000912696123, "wall_s": 0.2961328999372199}
+{"event": "goal_alignment", "sim_s": 15.75000082142651, "sim_abs_s": 17.30000090226531, "wall_s": 21.06755863595754}
+{"event": "goal_alignment", "sim_s": 30.40000158548355, "sim_abs_s": 31.95000166632235, "wall_s": 40.45762268197723}
+{"event": "goal_alignment", "sim_s": 44.033335629850626, "sim_abs_s": 45.583335710689425, "wall_s": 58.548596189008094}
+{"event": "goal_alignment", "sim_s": 58.43333638086915, "sim_abs_s": 59.98333646170795, "wall_s": 77.86781247798353}
+{"event": "goal_alignment", "sim_s": 73.46667049825191, "sim_abs_s": 75.01667057909071, "wall_s": 98.20335297798738}
+{"event": "task_complete", "sim_s": 97.11667173169553, "sim_abs_s": 98.66667181253433, "wall_s": 130.11883729195688, "task": "t00 TurtleBot3.move_to_point((1.5, 0.75))", "robot": "turtlebot3", "result": "arrived (0 route changes, 0 stale scans skipped so far)"}
+{"event": "task_start", "sim_s": 97.11667173169553, "sim_abs_s": 98.66667181253433, "wall_s": 130.12845395994373, "task": "t01 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 97.11667173169553, "sim_abs_s": 98.66667181253433, "wall_s": 130.13106529193465, "task": "t01 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3", "result": "scan: front=0.78 m left=1.22 m right=0.51 m"}
+{"event": "task_start", "sim_s": 97.11667173169553, "sim_abs_s": 98.66667181253433, "wall_s": 130.13138905598316, "task": "t02 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3"}
+{"event": "survivor_found", "sim_s": 99.98333854787052, "sim_abs_s": 101.53333862870932, "wall_s": 134.0461787089007}
+{"event": "task_complete", "sim_s": 99.98333854787052, "sim_abs_s": 101.53333862870932, "wall_s": 134.046619902947, "task": "t02 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3", "result": "SURVIVOR DETECTED at (2.45, 1.20), 1.05 m away (1/2 found)"}
+{"event": "task_start", "sim_s": 99.98333854787052, "sim_abs_s": 101.53333862870932, "wall_s": 134.0561637589708, "task": "t03 TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 100.48333857394755, "sim_abs_s": 102.03333865478635, "wall_s": 134.68772536795586, "task": "t03 TurtleBot3.communicate_with_apm('survivor 1 found at (1.5, 0.75)')", "robot": "turtlebot3", "result": "simulated; report to APM: 1/2 survivors located: #1 at (2.45, 1.20)"}
+{"event": "task_start", "sim_s": 100.48333857394755, "sim_abs_s": 102.03333865478635, "wall_s": 134.69717956101522, "task": "t04 TurtleBot3.move_to_point((1.5, -0.75))", "robot": "turtlebot3"}
+{"event": "goal_alignment", "sim_s": 100.68333858437836, "sim_abs_s": 102.23333866521716, "wall_s": 134.98165701597463}
+{"event": "route_change", "sim_s": 128.90000672265887, "sim_abs_s": 130.45000680349767, "wall_s": 173.29734060296323}
+{"event": "goal_alignment", "sim_s": 129.00000672787428, "sim_abs_s": 130.55000680871308, "wall_s": 173.4139932509279}
+{"event": "goal_alignment", "sim_s": 143.4000074788928, "sim_abs_s": 144.9500075597316, "wall_s": 192.87243130791467}
+{"event": "goal_alignment", "sim_s": 156.78334151022136, "sim_abs_s": 158.33334159106016, "wall_s": 210.81566953193396}
+{"event": "goal_alignment", "sim_s": 171.5666756145656, "sim_abs_s": 173.1166756954044, "wall_s": 230.74814197199885}
+{"event": "task_complete", "sim_s": 194.583343481645, "sim_abs_s": 196.1333435624838, "wall_s": 261.8190320909489, "task": "t04 TurtleBot3.move_to_point((1.5, -0.75))", "robot": "turtlebot3", "result": "arrived (1 route changes, 0 stale scans skipped so far)"}
+{"event": "task_start", "sim_s": 194.583343481645, "sim_abs_s": 196.1333435624838, "wall_s": 261.82854661601596, "task": "t05 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 194.583343481645, "sim_abs_s": 196.1333435624838, "wall_s": 261.82913855696097, "task": "t05 TurtleBot3.scan_with_lidar()", "robot": "turtlebot3", "result": "scan: front=1.61 m left=1.04 m right=0.57 m"}
+{"event": "task_start", "sim_s": 194.583343481645, "sim_abs_s": 196.1333435624838, "wall_s": 261.8294403849868, "task": "t06 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3"}
+{"event": "survivor_found", "sim_s": 195.53334353119135, "sim_abs_s": 197.08334361203015, "wall_s": 263.0995059479028}
+{"event": "task_complete", "sim_s": 195.53334353119135, "sim_abs_s": 197.08334361203015, "wall_s": 263.0998455049703, "task": "t06 TurtleBot3.detect_with_camera('survivor')", "robot": "turtlebot3", "result": "SURVIVOR DETECTED at (1.00, -1.30), 0.78 m away (2/2 found)"}
+{"event": "task_start", "sim_s": 195.53334353119135, "sim_abs_s": 197.08334361203015, "wall_s": 263.1093444089638, "task": "t07 TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 196.03334355726838, "sim_abs_s": 197.58334363810718, "wall_s": 263.7419726459775, "task": "t07 TurtleBot3.communicate_with_apm('survivor 2 found at (1.5, -0.75)')", "robot": "turtlebot3", "result": "simulated; report to APM: 2/2 survivors located: #1 at (2.45, 1.20); #2 at (1.00, -1.30)"}
+{"event": "task_start", "sim_s": 196.03334355726838, "sim_abs_s": 197.58334363810718, "wall_s": 263.75141975597944, "task": "t08 TurtleBot3.move_to_point((0.0, 0.0))", "robot": "turtlebot3"}
+{"event": "goal_alignment", "sim_s": 196.2333435676992, "sim_abs_s": 197.783343648538, "wall_s": 264.0157358829165}
+{"event": "goal_alignment", "sim_s": 224.4500117059797, "sim_abs_s": 226.0000117868185, "wall_s": 301.9193519919645}
+{"event": "task_complete", "sim_s": 269.5833473931998, "sim_abs_s": 271.1333474740386, "wall_s": 362.41870772698894, "task": "t08 TurtleBot3.move_to_point((0.0, 0.0))", "robot": "turtlebot3", "result": "arrived (0 route changes, 0 stale scans skipped so far)"}
+{"event": "task_start", "sim_s": 269.5833473931998, "sim_abs_s": 271.1333474740386, "wall_s": 362.4281709420029, "task": "t09 TurtleBot3.communicate_with_apm('back at base, search complete')", "robot": "turtlebot3"}
+{"event": "task_complete", "sim_s": 270.08334741927683, "sim_abs_s": 271.63334750011563, "wall_s": 363.0723713719053, "task": "t09 TurtleBot3.communicate_with_apm('back at base, search complete')", "robot": "turtlebot3", "result": "simulated; report to APM: 2/2 survivors located: #1 at (2.45, 1.20); #2 at (1.00, -1.30)"}
+{"event": "robot_complete", "sim_s": 270.08334741927683, "sim_abs_s": 271.63334750011563, "wall_s": 363.072391198948, "robot": "turtlebot3"}
+{"event": "mission_end", "sim_s": 270.08334741927683, "sim_abs_s": 271.63334750011563, "wall_s": 363.0724039359484, "status": "success", "reason": ""}

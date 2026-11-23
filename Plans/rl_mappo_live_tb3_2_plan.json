@@ -1,0 +1,41 @@
+{
+    "target": "TURTLEBOT3_2",
+    "phases": [
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 1,
+            "state": "TurtleBot3_2 is deployed at the responder base, ready to assist in the search and rescue mission. The robot is positioned at coordinates (-1.2, 1.95) and is tasked with locating and assisting survivors in the east sector.",
+            "phase_target": "Navigate to the east sector inspection point and perform a thorough scan.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.0, 0.9))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')\nTurtleBot3_2.communicate_with_apm('survivor found in east sector')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 2,
+            "state": "Having completed the east sector inspection, TurtleBot3_2 now proceeds to the east room, located at the east doorway point (-1.4, 0.5).",
+            "phase_target": "Enter the east room and navigate to the inspection point (-1.4, -0.55) for a detailed scan and survivor detection.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.4, 0.5))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')\nTurtleBot3_2.communicate_with_apm('survivor found in east doorway')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 3,
+            "state": "After the east room inspection, TurtleBot3_2 is returning to the hub at (-2.3, 0.5).",
+            "phase_target": "Guide the rescue team by navigating back to the hub and then north through the rubble corridor to the base at (-2.3, 1.95).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.4, -0.55))\nTurtleBot3_2.scan_with_lidar()\nTurtleBot3_2.detect_with_camera('survivor')\nTurtleBot3_2.communicate_with_apm('survivor found in east room')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 4,
+            "state": "TurtleBot3_2 has completed its tasks, inspecting the east sector and east room, and is now at the base.",
+            "phase_target": "Communicate mission completion to the APM with a summary of findings and locations.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((-1.4, 0.5))"
+        }
+    ]
+}

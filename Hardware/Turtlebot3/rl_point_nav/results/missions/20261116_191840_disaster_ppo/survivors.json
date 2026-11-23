@@ -1,0 +1,24 @@
+{
+  "located": 2,
+  "total": 2,
+  "survivors": [
+    {
+      "survivor": 1,
+      "x_m": 2.45,
+      "y_m": 1.2,
+      "robot_x_m": 1.5,
+      "robot_y_m": 0.8,
+      "distance_m": 1.03,
+      "mission_sim_s": 123.9
+    },
+    {
+      "survivor": 2,
+      "x_m": 1.0,
+      "y_m": -1.3,
+      "robot_x_m": 1.54,
+      "robot_y_m": -0.73,
+      "distance_m": 0.78,
+      "mission_sim_s": 232.5
+    }
+  ]
+}
