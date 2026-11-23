@@ -4,6 +4,8 @@ PPO point navigation for the TurtleBot3 Burger: trained in Isaac Sim, then deplo
 
 **New here? Read [docs/RL_HANDOFF.md](../../../docs/RL_HANDOFF.md) first.** It explains the trained policy, the exact observation/action/reward, and what is still needed for hardware. The hardware team's task list is [docs/HARDWARE_REQUEST.md](../../../docs/HARDWARE_REQUEST.md).
 
+**Two robots (MAPPO) and two-robot CyberScape missions: [docs/MAPPO_HARDWARE_HANDOFF.md](../../../docs/MAPPO_HARDWARE_HANDOFF.md).**
+
 ## Files (paths relative to this folder)
 
 | Path | What | Who |
@@ -12,6 +14,9 @@ PPO point navigation for the TurtleBot3 Burger: trained in Isaac Sim, then deplo
 | `isaac_*.py`, `train_*`, `eval_*`, `demo_*` | Isaac Sim environments, training, evaluation, GUI demos, sensor tests. Need Isaac Sim. | simulation PC |
 | `ros_point_nav_env.py` | ROS 2 environment (odometry, `/cmd_vel_raw`). Starting point for hardware. New hardware RL files go next to it. | hardware PC |
 | `run_policy_on_hardware.py`, `ros_point_nav_lidar_env.py`, `lidar_sectors.py`, `policy_numpy.py` | Run a trained policy on the real Burger (V1B or V2). Need only ROS 2 + NumPy, so they run on the Pi. | hardware PC |
+| `isaac_multi_point_nav_env.py`, `train_mappo.py` | Two-robot Isaac env and MAPPO training/eval, gap controller, CyberScape mission bridge (`--mission-listen`). Need Isaac Sim. | simulation PC |
+| `cyberscape_mappo_mission.py`, `../../Isaac/cyberscape_mappo_plan_sender.py`, `run_cyberscape_mappo_*.sh`, `run_mappo_demo.sh` | Two-robot CyberScape plans: merge per phase, send one phase at a time, demo launchers | simulation PC |
+| `export_mappo_numpy.py` | MAPPO actor `.pt` → `.npz` for `policy_numpy.py` (V5: 15 inputs) | either |
 | `export_policy_numpy.py` | Converts a `.zip` checkpoint to the `.npz` the robot uses, and checks it picks the same actions. Needs SB3 + torch. | either |
 | `models/` | Trained PPO policies. **Use `isaac_point_nav_lidar_ppo_v2/checkpoint_170000_steps.zip` (V2)** and `isaac_point_nav_ppo_v1b/checkpoint_15000_steps.zip` (V1B). V2's `final_model.zip` is an old short test run. | both |
 | `results/` | Evaluation CSVs (`eval_lidar_vs_nolidar.py` writes here; put hardware results here too) | both |

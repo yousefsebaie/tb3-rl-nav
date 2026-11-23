@@ -12,6 +12,13 @@ For both PCs. Read this first after a break.
 - **Secrets:** `config.json` holds the API keys and is not in git. Copy `config.example.json` to `config.json` and fill in the keys.
 - **On macOS:** use `git switch hardware`, not `git checkout hardware`. The `Hardware/` folder has the same name, and macOS ignores case.
 
+## Simulation PC update (2026-11-23): V4, MAPPO for two robots, two-robot CyberScape missions
+**Hardware side: read [MAPPO_HARDWARE_HANDOFF.md](MAPPO_HARDWARE_HANDOFF.md).** In short:
+- **V4** (`models/isaac_point_nav_lidar_ppo_v3_random/checkpoint_1570000_steps.npz`, profile `v3`, 6 inputs) is a drop-in for V3 on one Burger. Sim benchmark: 83% / 80% / 85% success vs B0's 30% / 35% / 25%.
+- **MAPPO V5** (`models/mappo_v5_kl05/best_model.npz`, **15 inputs**) is the final two-robot policy. In sim it reached 68% both-reached with 12% collisions, using the gap controller. It needs 5 extra LiDAR sectors and the **other robot's position** in a shared frame.
+- In Isaac, CyberScape plans for TURTLEBOT3_1 + TURTLEBOT3_2 run phase by phase, including a live LLM plan (5/5 phases, 4/4 survivors). On hardware this needs a **phase barrier** and **pose exchange** between the two Pis.
+- `config.py` (actions, timings, reward) is unchanged. Nothing new has run on a real robot yet.
+
 ## Done so far
 
 ### Real robots (LLM mission → approval → robots move)
