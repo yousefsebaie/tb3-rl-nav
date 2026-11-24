@@ -1,0 +1,28 @@
+{
+ "survivor": true,
+ "which": "BOB",
+ "confidence": 0.8,
+ "position_in_image": "left",
+ "seen": {
+  "BOB": {
+   "visible": true,
+   "confidence": 0.8,
+   "position_in_image": "left"
+  },
+  "BOB2": {
+   "visible": false,
+   "confidence": 0.0,
+   "position_in_image": null
+  }
+ },
+ "reason": "The large yellow package on the left side of the image matches the description of BOB. There is no red bean bag visible in the image, so BOB2 is not present.",
+ "model": "command-a-vision-07-2025",
+ "seconds": 4.7,
+ "picture": "20261124_033113_TURTLEBOT3_1.jpg",
+ "robot_pose": {
+  "robot": "TURTLEBOT3_1",
+  "x": "3.715",
+  "y": "0.796",
+  "yaw_deg": "40.4"
+ }
+}

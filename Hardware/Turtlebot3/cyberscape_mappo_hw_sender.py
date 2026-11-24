@@ -26,6 +26,9 @@ from cyberscape_mappo_mission import ROBOT_NAMES, merge_plans, parse_line  # noq
 SERVER_URL = os.environ.get("CYBERSCAPE_SERVER_URL", "http://localhost:5001")
 AGENTS = [a.strip().rstrip("/") for a in os.environ.get("MAPPO_AGENTS", "").split(",") if a.strip()]
 POLL_DELAY = 0.5
+UNREACHABLE_STOP_S = 20.0
+# Resume after a stop: MAPPO_START_PHASE=7 MAPPO_FOUND="BOB=4.12,1.14;BOB2=3.8,-0.3"
+START_PHASE = int(os.environ.get("MAPPO_START_PHASE", "1"))
 TIMEOUT_SECONDS = float(os.environ.get("CYBERSCAPE_ISAAC_COMMAND_TIMEOUT", "900"))
 
 
@@ -81,15 +84,21 @@ def run_phase(number, lines):
     for agent, robot_lines in zip(AGENTS, per_robot):
         http("POST", agent + "/phase", {"phase": number, "lines": robot_lines})
     start = time.time()
+    unreachable = {}   # agent -> since when it has not answered (a picture upload can stall the hotspot for seconds)
     while time.time() - start < TIMEOUT_SECONDS:
         states = []
         for agent in AGENTS:
             try:
                 status = http("GET", agent + "/status")
+                unreachable.pop(agent, None)
             except (urllib.error.URLError, OSError) as exc:
-                print(f"MAPPO hw sender: {agent} not answering ({exc}); stopping both", flush=True)
-                stop_all()
-                return False
+                since = unreachable.setdefault(agent, time.time())
+                if time.time() - since > UNREACHABLE_STOP_S:
+                    print(f"MAPPO hw sender: {agent} not answering for {UNREACHABLE_STOP_S:.0f} s ({exc}); "
+                          "stopping both", flush=True)
+                    stop_all()
+                    return False
+                status = {"state": "BUSY", "phase": number}
             states.append(status if status.get("phase") == number else {"state": "BUSY"})
         if any(s["state"] == "FAILED" for s in states):
             print(f"MAPPO hw sender: phase {number} FAILED: "
@@ -123,7 +132,14 @@ def main():
         print("No MULTI_TURTLEBOT / TURTLEBOT3_1 / TURTLEBOT3_2 plan approved.", flush=True)
         return
     print(f"Loaded approved plans {sorted(plans)}: {len(phases)} phases; agents {AGENTS}", flush=True)
+    for entry in filter(None, os.environ.get("MAPPO_FOUND", "").split(";")):
+        name, xy = entry.split("=")
+        FOUND[name.strip().upper()] = [float(v) for v in xy.split(",")]
+    if START_PHASE > 1:
+        print(f"MAPPO hw sender: resuming at phase {START_PHASE}; known survivors {FOUND}", flush=True)
     for number, lines in phases:
+        if number < START_PHASE:
+            continue
         if not run_phase(number, lines):
             print("MAPPO mission stopped", flush=True)
             return
