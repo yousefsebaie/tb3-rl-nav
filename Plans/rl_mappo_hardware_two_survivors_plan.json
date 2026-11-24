@@ -1,70 +1,255 @@
 {
     "target": "MULTI_TURTLEBOT",
     "phases": [
-        {"target": "TURTLEBOT3_1", "phase_number": 1, "state": "Both robots outside the lab door: TurtleBot3_1 (camera) on the right, TurtleBot3_2 (no camera, carries the first-aid kits) on the left. Callers report two survivors behind the fallen chairs: BOB about (4.2, 1.2) and BOB2 about (4.1, -0.4).",
-         "phase_target": "Enter through the door (one robot at a time).", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((0.7, -0.1))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 1, "state": "Outside the door.", "phase_target": "Wait outside.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 2, "state": "Just inside the door.", "phase_target": "Pass right of the box.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((1.4, -0.6))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 2, "state": "Outside the door.", "phase_target": "Enter through the door.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((0.7, 0.05))"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 3, "state": "Right of the box.", "phase_target": "Get between the box and the chairs.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((2.3, -0.45))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 3, "state": "Just inside the door.", "phase_target": "Hold.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 4, "state": "Between the box and the chairs.", "phase_target": "Pass through the gap between the fallen chairs.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((2.95, -0.05))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 4, "state": "Just inside the door.", "phase_target": "Pass right of the box.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((1.4, -0.6))"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 5, "state": "In the chair gap.", "phase_target": "Get past the chairs.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((3.55, 0.15))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 5, "state": "Right of the box.", "phase_target": "Follow to between the box and the chairs.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((2.3, -0.45))"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 6, "state": "Past the chairs.", "phase_target": "Find BOB, take a picture and confirm it is the survivor.", "inputs": [], "outputs": {"BOB": {"type": "location"}},
-         "low_level_plan": "TurtleBot3_1.move_to_point((3.75, 0.8))\nTurtleBot3_1.look_at((4.2, 1.2))\nTurtleBot3_1.detect_with_camera('survivor')"},
-        {"target": "TURTLEBOT3_2", "phase_number": 6, "state": "Between the box and the chairs.", "phase_target": "Hold until BOB is confirmed.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 7, "state": "BOB confirmed.", "phase_target": "Find BOB2, take a picture and confirm it is the survivor.", "inputs": [], "outputs": {"BOB2": {"type": "location"}},
-         "low_level_plan": "TurtleBot3_1.move_to_point((3.4, -0.15))\nTurtleBot3_1.look_at((4.1, -0.4))\nTurtleBot3_1.detect_with_camera('survivor')"},
-        {"target": "TURTLEBOT3_2", "phase_number": 7, "state": "BOB's location received from TurtleBot3_1.", "phase_target": "Bring BOB the first-aid kit.", "inputs": ["BOB"], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((2.95, -0.05))\nTurtleBot3_2.deliver_kit('BOB')"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 8, "state": "BOB2 confirmed.", "phase_target": "Head back through the chair gap.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((2.95, -0.05))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 8, "state": "Kit delivered to BOB; BOB2's location received from TurtleBot3_1.", "phase_target": "Bring BOB2 the first-aid kit.", "inputs": ["BOB2"], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.deliver_kit('BOB2')"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 9, "state": "In the chair gap.", "phase_target": "Back between the chairs and the box.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((2.3, -0.45))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 9, "state": "Kit delivered to BOB2.", "phase_target": "Hold.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.scan_with_lidar()"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 10, "state": "Between the chairs and the box.", "phase_target": "Back right of the box.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((1.4, -0.6))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 10, "state": "Near BOB2.", "phase_target": "Head back past the chairs.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((3.55, 0.15))"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 11, "state": "Right of the box.", "phase_target": "Back to just inside the door.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.move_to_point((0.7, -0.1))"},
-        {"target": "TURTLEBOT3_2", "phase_number": 11, "state": "Past the chairs.", "phase_target": "Back through the chair gap.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((2.95, -0.05))"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 12, "state": "Just inside the door.", "phase_target": "Exit to the start.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_1.return_to_base()"},
-        {"target": "TURTLEBOT3_2", "phase_number": 12, "state": "In the chair gap.", "phase_target": "Back between the chairs and the box.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((2.3, -0.45))"},
-
-        {"target": "TURTLEBOT3_1", "phase_number": 13, "state": "Outside the door.", "phase_target": "Report the mission complete.", "inputs": [], "outputs": {"mission_status": {"type": "string"}},
-         "low_level_plan": "TurtleBot3_1.communicate_with_apm('mission complete: two survivors confirmed by camera, kits delivered')"},
-        {"target": "TURTLEBOT3_2", "phase_number": 13, "state": "Between the chairs and the box.", "phase_target": "Exit to the start.", "inputs": [], "outputs": [],
-         "low_level_plan": "TurtleBot3_2.move_to_point((1.4, -0.6))\nTurtleBot3_2.move_to_point((0.7, 0.05))\nTurtleBot3_2.return_to_base()"}
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 1,
+            "state": "Both robots outside the lab door: TurtleBot3_1 (camera) on the right, TurtleBot3_2 (no camera, carries the first-aid kits) on the left. Callers report two survivors behind the fallen chairs: BOB about (4.2, 1.2) and BOB2 about (4.1, -0.4).",
+            "phase_target": "Enter through the door (one robot at a time).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((0.7, -0.1))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 1,
+            "state": "Outside the door.",
+            "phase_target": "Wait outside.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 2,
+            "state": "Just inside the door.",
+            "phase_target": "Pass right of the box.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((1.4, -0.6))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 2,
+            "state": "Outside the door.",
+            "phase_target": "Enter through the door.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((0.7, 0.05))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 3,
+            "state": "Right of the box.",
+            "phase_target": "Get between the box and the chairs.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((2.3, -0.45))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 3,
+            "state": "Just inside the door.",
+            "phase_target": "Hold.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 4,
+            "state": "Between the box and the chairs.",
+            "phase_target": "Pass through the gap between the fallen chairs.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((2.95, -0.05))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 4,
+            "state": "Just inside the door.",
+            "phase_target": "Pass right of the box.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((1.4, -0.6))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 5,
+            "state": "In the chair gap.",
+            "phase_target": "Get past the chairs.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((3.55, 0.15))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 5,
+            "state": "Right of the box.",
+            "phase_target": "Follow to between the box and the chairs.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((2.3, -0.45))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 6,
+            "state": "Past the chairs.",
+            "phase_target": "Find BOB, take a picture and confirm it is the survivor.",
+            "inputs": [],
+            "outputs": {
+                "BOB": {
+                    "type": "location"
+                }
+            },
+            "low_level_plan": "TurtleBot3_1.move_to_point((3.75, 0.8))\nTurtleBot3_1.look_at((4.2, 1.2))\nTurtleBot3_1.detect_with_camera('survivor')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 6,
+            "state": "Between the box and the chairs.",
+            "phase_target": "Hold until BOB is confirmed.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 7,
+            "state": "BOB confirmed.",
+            "phase_target": "Find BOB2, take a picture and confirm it is the survivor.",
+            "inputs": [],
+            "outputs": {
+                "BOB2": {
+                    "type": "location"
+                }
+            },
+            "low_level_plan": "TurtleBot3_1.move_to_point((3.4, -0.15))\nTurtleBot3_1.look_at((4.1, -0.4))\nTurtleBot3_1.detect_with_camera('survivor')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 7,
+            "state": "BOB's location received from TurtleBot3_1.",
+            "phase_target": "Bring BOB the first-aid kit.",
+            "inputs": [
+                "BOB"
+            ],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((2.95, -0.05))\nTurtleBot3_2.deliver_kit('BOB')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 8,
+            "state": "BOB2 confirmed.",
+            "phase_target": "Head back through the chair gap.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((2.95, -0.05))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 8,
+            "state": "Kit delivered to BOB; BOB2's location received from TurtleBot3_1.",
+            "phase_target": "Bring BOB2 the first-aid kit.",
+            "inputs": [
+                "BOB2"
+            ],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.deliver_kit('BOB2')"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 9,
+            "state": "In the chair gap.",
+            "phase_target": "Back between the chairs and the box.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((2.3, -0.45))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 9,
+            "state": "Kit delivered to BOB2.",
+            "phase_target": "Hold.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.scan_with_lidar()"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 10,
+            "state": "Between the chairs and the box.",
+            "phase_target": "Back right of the box.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((1.4, -0.6))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 10,
+            "state": "Near BOB2.",
+            "phase_target": "Head back past the chairs.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((3.55, 0.15))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 11,
+            "state": "Right of the box.",
+            "phase_target": "Back to just inside the door.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((0.7, -0.1))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 11,
+            "state": "Past the chairs.",
+            "phase_target": "Back through the chair gap.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((2.95, -0.05))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 12,
+            "state": "Just inside the door.",
+            "phase_target": "Stop just inside the door (the end point; not through the narrow door at the end of a long mission).",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_1.move_to_point((0.35, -0.2))"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 12,
+            "state": "In the chair gap.",
+            "phase_target": "Back between the chairs and the box.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((2.3, -0.45))"
+        },
+        {
+            "target": "TURTLEBOT3_1",
+            "phase_number": 13,
+            "state": "Outside the door.",
+            "phase_target": "Report the mission complete.",
+            "inputs": [],
+            "outputs": {
+                "mission_status": {
+                    "type": "string"
+                }
+            },
+            "low_level_plan": "TurtleBot3_1.communicate_with_apm('mission complete: two survivors confirmed by camera, kits delivered')"
+        },
+        {
+            "target": "TURTLEBOT3_2",
+            "phase_number": 13,
+            "state": "Between the chairs and the box.",
+            "phase_target": "Back to the door area, beside TurtleBot3_1.",
+            "inputs": [],
+            "outputs": [],
+            "low_level_plan": "TurtleBot3_2.move_to_point((1.4, -0.6))\nTurtleBot3_2.move_to_point((0.8, 0.25))"
+        }
     ]
 }
