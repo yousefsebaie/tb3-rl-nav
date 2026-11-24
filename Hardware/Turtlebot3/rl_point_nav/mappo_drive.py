@@ -33,7 +33,7 @@ from pathlib import Path
 import time
 
 from config import PointNavAction
-from mappo_hardware import ALIGN_UNTIL_DEG, FORWARD, POSE_PORT, STAY, TURN_LEFT, TURN_RIGHT, V5_INPUT_NAMES, GapAssist, \
+from mappo_hardware import ALIGN_UNTIL_DEG, POSE_PORT, STAY, TURN_LEFT, TURN_RIGHT, V5_INPUT_NAMES, GapAssist, \
     free_gap_heading
 from policy_numpy import NumpyPolicy
 from ros_mappo_env import MappoRosEnv, TeammateLost
@@ -45,8 +45,6 @@ MISSION_STEP_LIMIT = 400        # cyberscape_mappo_mission.MISSION_STEP_LIMIT
 TEAMMATE_WAIT_S = 30.0
 AFTER_DONE_WAIT_S = 120.0
 ROBOT_CONTACT_M = 2 * 0.105 + 0.03
-FRONT_BLOCKED = 0.12           # front / narrow_front input (m / 1 m) at or below this: no FORWARD
-FRONT_BLOCKED_STEPS = 6
 
 
 def log(message: str) -> None:
@@ -144,7 +142,6 @@ def _drive(env, policy, goal, max_steps, use_gap, csv, t0, abort) -> str:
     gap = GapAssist()
     aligning = True
     lost_since = None
-    blocked_steps = 0
     for _ in range(max_steps):
         if abort():
             log("stop requested")
@@ -163,16 +160,6 @@ def _drive(env, policy, goal, max_steps, use_gap, csv, t0, abort) -> str:
             state = env._current_state()
             action, why = gap.decide(policy_action, (state.x, state.y), dist, bearing_deg,
                                      lambda: gap_heading(env, bearing_deg))
-        if action == FORWARD and min(observation[3], observation[6]) <= FRONT_BLOCKED:
-            # The LDS cannot measure closer than ~0.12 m and then reads the sector as blocked (0); the contact
-            # guard is blind there. Never drive into it (Burger 1 pushed into the door frame, 2026-11-24).
-            action, why = STAY, "front blocked"
-            blocked_steps += 1
-        else:
-            blocked_steps = 0
-        if blocked_steps >= FRONT_BLOCKED_STEPS:
-            log(f"front blocked for {blocked_steps} steps at {dist:.2f} m from the goal: stopping this move")
-            return "BLOCKED"
         me = env.latest_shared()
         mate = env.last_teammate
         csv.write(f"{time.monotonic() - t0:.2f},{me[0]:.3f},{me[1]:.3f},{math.degrees(me[2]):.1f},"
