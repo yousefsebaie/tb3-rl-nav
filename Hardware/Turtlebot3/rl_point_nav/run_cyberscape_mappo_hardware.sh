@@ -16,7 +16,8 @@
 #   4) starts the CyberScape HITL server (port 5001) with the plan, and the hardware sender as the
 #      post-approval hook: open http://localhost:5001/dashboard/index.html and press Approve.
 # Start poses by hand (the LDS-02 may not see the black Burgers): START1=0,0,0 START2=1.8,0,180 ./run_...
-# Survivor stand-ins (camera stand-in, as in simulation): SURVIVORS="1.6,-1.1 0.4,-1.1" by default.
+# Burger 1's detect_with_camera sends pictures to survivor_vision.py (Cohere vision) on the Mac.
+# Survivor stand-ins for Burger 2 (no camera; known positions, as in simulation): SURVIVORS="1.6,-1.1 0.4,-1.1" by default.
 # Emergency stop: curl -X POST http://BURGER_IP:8765/stop   (or switch the robot off)
 set -euo pipefail
 
@@ -70,9 +71,13 @@ EOF
 fi
 if [ -t 0 ]; then read -r -p "Does that match the floor (Burger 2 about 2 m straight ahead of Burger 1)? Enter = yes, Ctrl+C = no " _; fi
 
-say "3) MAPPO agents on both Burgers"
+say "3) Vision service (Mac) and MAPPO agents on both Burgers"
+MAC_IP="$(ipconfig getifaddr en0)"
+pkill -f "[s]urvivor_vision.py --serve" || true
+(cd "$HERE/.." && nohup python3 -I survivor_vision.py --serve 8770 > "$HERE/results/survivor_vision.log" 2>&1 < /dev/null &)
+VISION="--vision-url http://$MAC_IP:8770"   # Burger 1 has the camera; Burger 2 uses the known-position stand-in
 ssh "ubuntu@$B1" "$ROS export ROS_DOMAIN_ID=30; cd ~/rl_point_nav && setsid -f nohup python3 mappo_agent.py --robot TURTLEBOT3_1 \
-    --start ${START1//,/ } --peer $B2 --survivors $SURVIVORS > /tmp/mappo_agent.log 2>&1 < /dev/null"
+    --start ${START1//,/ } --peer $B2 --survivors $SURVIVORS $VISION > /tmp/mappo_agent.log 2>&1 < /dev/null"
 ssh "ubuntu@$B2" "$ROS export ROS_DOMAIN_ID=31; cd ~/rl_point_nav && setsid -f nohup python3 mappo_agent.py --robot TURTLEBOT3_2 \
     --start ${START2//,/ } --peer $B1 --survivors $SURVIVORS > /tmp/mappo_agent.log 2>&1 < /dev/null"
 for ip in "$B1" "$B2"; do

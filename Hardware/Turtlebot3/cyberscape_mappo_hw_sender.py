@@ -14,6 +14,7 @@ The HITL server launches this after approval when CYBERSCAPE_ISAAC_SENDER points
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -47,7 +48,27 @@ def stop_all():
             pass
 
 
+FOUND = {}   # survivor name -> [x, y], reported by a robot's camera in an earlier phase
+_NAMED = re.compile(r"""(deliver_kit|move_to_point|look_at)\(\s*['"]([A-Za-z0-9_]+)['"]\s*\)""")
+
+
+def fill_survivors(line):
+    """deliver_kit('BOB2') -> deliver_kit((x, y)) with the location the camera robot reported."""
+    def sub(match):
+        name = match.group(2).upper()
+        if name not in FOUND:
+            raise LookupError(f"{name} has not been confirmed by a camera yet")
+        x, y = FOUND[name]
+        return f"{match.group(1)}(({x:.3f}, {y:.3f}))"
+    return _NAMED.sub(sub, line)
+
+
 def run_phase(number, lines):
+    try:
+        lines = [fill_survivors(line) for line in lines]
+    except LookupError as exc:
+        print(f"MAPPO hw sender: phase {number} cannot start: {exc}; stopping", flush=True)
+        return False
     per_robot = [[] for _ in ROBOT_NAMES]
     for line in lines:
         index = parse_line(line)[0]
@@ -78,6 +99,11 @@ def run_phase(number, lines):
         if all(s["state"] == "DONE" for s in states):
             print(f"MAPPO robots completed phase {number}: "
                   + " | ".join(s.get("summary", "") for s in states), flush=True)
+            for name, status in zip(ROBOT_NAMES, states):
+                for survivor, where in (status.get("outputs") or {}).items():
+                    FOUND[survivor.upper()] = where
+                    print(f"MAPPO hw sender: {name} reports survivor {survivor.upper()} at "
+                          f"({where[0]:.2f}, {where[1]:.2f}); shared with the team", flush=True)
             return True
         time.sleep(POLL_DELAY)
     print(f"MAPPO hw sender: timeout waiting for phase {number}; stopping both", flush=True)
