@@ -1,0 +1,28 @@
+{
+ "survivor": true,
+ "which": "BOB",
+ "confidence": 0.9,
+ "position_in_image": "center",
+ "seen": {
+  "BOB": {
+   "visible": true,
+   "confidence": 0.9,
+   "position_in_image": "center"
+  },
+  "BOB2": {
+   "visible": false,
+   "confidence": 0.0,
+   "position_in_image": null
+  }
+ },
+ "reason": "The yellow package with a cartoon face and the name BOB is clearly visible in the center of the image. There is no red bean bag or any object resembling BOB2 in the visible area.",
+ "model": "command-a-vision-07-2025",
+ "seconds": 3.9,
+ "picture": "20261124_021907_TURTLEBOT3_1.jpg",
+ "robot_pose": {
+  "robot": "TURTLEBOT3_1",
+  "x": "3.715",
+  "y": "0.773",
+  "yaw_deg": "48.8"
+ }
+}
