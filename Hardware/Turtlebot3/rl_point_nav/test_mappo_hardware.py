@@ -142,6 +142,18 @@ class GapAndPlacementTests(unittest.TestCase):
         self.assertAlmostEqual(free_gap_heading(ranges, 0.0, inc, -50.0), -52.0, delta=2.0)
         self.assertIsNone(free_gap_heading([0.5] * n, 0.0, inc, 0.0))
 
+    def test_a_clear_goal_direction_is_taken_straight(self):
+        # Burger 2's case: one wide free arc (-10..+95 deg), obstacles left and right further out,
+        # goal 3 deg off: steer at the goal, not at the arc's centre (~+42 deg).
+        n = 232
+        inc = 2 * math.pi / n
+        ranges = []
+        for i in range(n):
+            a = (math.degrees(i * inc) + 180) % 360 - 180
+            ranges.append(2.0 if -10 <= a <= 95 else 0.5)
+        self.assertAlmostEqual(free_gap_heading(ranges, 0.0, inc, 3.0), 3.0, delta=1.0)
+        self.assertAlmostEqual(free_gap_heading(ranges, 0.0, inc, -30.0), 0.0, delta=2.5)
+
     def test_gap_assist_hands_over_when_stuck_and_back_after_1_2_m(self):
         gap = GapAssist()
         for _ in range(GAP_STUCK_STEPS - 1):

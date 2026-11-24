@@ -179,15 +179,17 @@ GAP_NO_RETURN_M = 5.0
 GAP_MEDIAN_DEG = 1.7            # sim: 5 rays
 GAP_MIN_WIDTH_DEG = 2.0         # sim: 6 rays
 GAP_ON_TARGET_DEG = 8.0
+GAP_EDGE_MARGIN_DEG = 10.0    # aim at least this far inside a free gap's edge
 ALIGN_UNTIL_DEG = 15.0          # Goal Interface: turn in place until the goal is this close to ahead
 
 
 def free_gap_heading(ranges: Sequence[float], angle_min: float, angle_increment: float,
                      goal_bearing_deg: float) -> Optional[float]:
-    """Centre (deg, 0 = ahead, CCW +) of the free gap nearest the goal, None if there is none.
+    """Heading (deg, 0 = ahead, CCW +) through the free gap nearest the goal, None if there is none.
 
     sim free_gap_heading(): within +-75 deg, no return = far, median filter, a ray is free if it
     reaches 0.35 m beyond the closest ray in the cone, gaps narrower than ~2 deg are ignored.
+    Unlike the sim, the heading is the goal bearing clamped into the gap (see below), not its centre.
     """
     inc_deg = abs(math.degrees(angle_increment))
     rays = []
@@ -213,10 +215,15 @@ def free_gap_heading(ranges: Sequence[float], angle_min: float, angle_increment:
             while j < len(az) and free[j]:
                 j += 1
             if j - start >= min_rays:
-                centre = 0.5 * (az[start] + az[j - 1])
-                cost = abs(centre - goal_bearing_deg)
+                # Hardware change (2026-11-24): aim at the goal bearing clamped into the gap, not at the gap's
+                # centre. With one wide free arc the centre can sit ~40 deg off a clear goal direction, and the
+                # chosen arc flips sides after each turn: Burger 2 turned +-42 deg in place for 65 s.
+                lo, hi = az[start], az[j - 1]
+                margin = min(GAP_EDGE_MARGIN_DEG, 0.5 * (hi - lo))
+                aim = min(max(goal_bearing_deg, lo + margin), hi - margin)
+                cost = abs(aim - goal_bearing_deg)
                 if cost < best_cost:
-                    best, best_cost = centre, cost
+                    best, best_cost = aim, cost
         j += 1
     return best
 

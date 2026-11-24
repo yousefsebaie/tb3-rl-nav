@@ -28,7 +28,9 @@ RECORD_DIR = HERE / "rl_point_nav" / "results" / "survivor_pictures"
 
 # What the survivors look like in this drill (the camera picture is taken ~0.5 m away, ~10 cm above the floor).
 SURVIVORS = {
-    "BOB": "a yellow package or bag on the floor with a cartoon face and the name BOB drawn on it in black marker",
+    "BOB": ("a large yellow plastic-wrapped package lying on the floor; a cartoon face and the name BOB are drawn "
+            "on top in black marker, which is often NOT visible from the robot's low side view, so a large yellow "
+            "package on the floor is enough"),
     "BOB2": "a red bean bag lying on the floor",
 }
 PROMPT = (
